@@ -1,15 +1,26 @@
 import streamlit as st
 import colorsys
+import matplotlib.pyplot as plt
+import numpy as np
 
-# 1. Valores de intensidade válidos no hardware do Mega Drive (0 a 7 mapeados para 0-255)
+# --- PAGE CONFIGURATION ---
+st.set_page_config(page_title="Genesis Color Wheel Pro", page_icon="🎮", layout="wide")
+
+st.title("🎮 Sega Genesis / Mega Drive Color Wheel Pro")
+st.markdown(
+    "Create and calculate color harmonies in the style of **Adobe Color**, locked strictly to the **512 colors (9-bit VDP RGB)** of the original hardware.")
+
+# --- HARDWARE TECHNICAL CONSTANTS ---
 VDP_STEPS = [0, 36, 73, 109, 146, 182, 219, 255]
 
+
 def quantize_to_genesis(rgb):
-    """Aproxima uma cor RGB comum para a paleta de 512 cores do Mega Drive."""
+    """Snaps any standard RGB color to the nearest native Sega Genesis VDP color."""
     return tuple(min(VDP_STEPS, key=lambda x: abs(x - c)) for c in rgb)
 
+
 def rgb_to_sgdk_hex(rgb):
-    """Converte RGB do Mega Drive para o formato hexadecimal lido pelo SGDK (0x0BGR)."""
+    """Converts RGB to native SGDK C format (0x0BGR)."""
     r, g, b = rgb
     r_vdp = VDP_STEPS.index(r) * 2
     g_vdp = VDP_STEPS.index(g) * 2
@@ -17,74 +28,175 @@ def rgb_to_sgdk_hex(rgb):
     vdp_value = (b_vdp << 8) | (g_vdp << 4) | r_vdp
     return f"0x{vdp_value:04X}"
 
-def calculate_harmonies(base_rgb, angle):
-    """Calcula uma cor harmônica rotacionando a Matiz (Hue) no espaço HSV."""
+
+def rgb_to_asm_hex(rgb):
+    """Converts RGB to traditional Assembly 68k format ($0BGR)."""
+    r, g, b = rgb
+    r_vdp = VDP_STEPS.index(r) * 2
+    g_vdp = VDP_STEPS.index(g) * 2
+    b_vdp = VDP_STEPS.index(b) * 2
+    vdp_value = (b_vdp << 8) | (g_vdp << 4) | r_vdp
+    return f"${vdp_value:04X}"
+
+
+def calculate_harmonies(base_rgb, angle, sat_mod=1.0, val_mod=1.0):
+    """Rotates the Hue in HSV space, applies modifiers, and quantizes back to 9-bit RGB."""
     r, g, b = [c / 255.0 for c in base_rgb]
     h, s, v = colorsys.rgb_to_hsv(r, g, b)
-    
-    # Rotaciona a matiz baseado no ângulo desejado (360 graus = 1.0)
+
     h_new = (h + (angle / 360.0)) % 1.0
-    
-    r_res, g_res, b_res = colorsys.hsv_to_rgb(h_new, s, v)
-    rgb_raw = (int(r_res * 255), int(g_res * 255), int(b_res * 255))
-    return quantize_to_genesis(rgb_raw)
+    s_new = max(0.0, min(1.0, s * sat_mod))
+    v_new = max(0.0, min(1.0, v * val_mod))
 
-# --- INTERFACE DO STREAMLIT ---
-st.set_page_config(page_title="Mega Drive Color Harmony", page_icon="🎮")
-st.title("🎮 Mega Drive Color Harmony Tool")
-st.markdown("Calcule harmonias de cores travadas estritamente na paleta de **512 cores (9-bit RGB)** do VDP do Sega Genesis/Mega Drive.")
+    r_res, g_res, b_res = colorsys.hsv_to_rgb(h_new, s_new, v_new)
+    return quantize_to_genesis((int(r_res * 255), int(g_res * 255), int(b_res * 255)))
 
-# Seleção da cor base usando o seletor nativo
-st.sidebar.header("Configurações")
-picker_color = st.sidebar.color_picker("Escolha a Cor Base", "#FF0000")
 
-# Converte o hex do seletor para RGB puro
-r_base = int(picker_color[1:3], 16)
-g_base = int(picker_color[3:5], 16)
-b_base = int(picker_color[5:7], 16)
+# --- SIDEBAR CONFIGURATION ---
+st.sidebar.header("🕹️ Harmony Panel")
 
-# Quantiza a cor base para o padrão do console
-base_genesis = quantize_to_genesis((r_base, g_base, b_base))
-hex_base_genesis = f"#{base_genesis[0]:02X}{base_genesis[1]:02X}{base_genesis[2]:02X}"
+harmony_rule = st.sidebar.selectbox(
+    "Harmony Rule:",
+    ["Analogous", "Monochromatic", "Triad", "Complementary", "Split Complementary", "Square", "Compound"]
+)
 
-# Cálculos das harmonias
-comp_genesis = calculate_harmonies(base_genesis, 180)
-hex_comp_genesis = f"#{comp_genesis[0]:02X}{comp_genesis[1]:02X}{comp_genesis[2]:02X}"
+picker_color = st.sidebar.color_picker("Select Base Color:", "#00E4A2")
 
-triade1_genesis = calculate_harmonies(base_genesis, 120)
-hex_t1_genesis = f"#{triade1_genesis[0]:02X}{triade1_genesis[1]:02X}{triade1_genesis[2]:02X}"
+r_b = int(picker_color[1:3], 16)
+g_b = int(picker_color[3:5], 16)
+b_b = int(picker_color[5:7], 16)
+base_genesis = quantize_to_genesis((r_b, g_b, b_b))
 
-triade2_genesis = calculate_harmonies(base_genesis, 240)
-hex_t2_genesis = f"#{triade2_genesis[0]:02X}{triade2_genesis[1]:02X}{triade2_genesis[2]:02X}"
+# --- ADOBE COLOR RULE LOGIC ---
+palette = []
+if harmony_rule == "Analogous":
+    palette = [
+        calculate_harmonies(base_genesis, -60),
+        calculate_harmonies(base_genesis, -30),
+        base_genesis,
+        calculate_harmonies(base_genesis, 30),
+        calculate_harmonies(base_genesis, 60)
+    ]
+elif harmony_rule == "Monochromatic":
+    palette = [
+        calculate_harmonies(base_genesis, 0, sat_mod=0.2, val_mod=0.4),
+        calculate_harmonies(base_genesis, 0, sat_mod=0.5, val_mod=0.7),
+        base_genesis,
+        calculate_harmonies(base_genesis, 0, sat_mod=0.8, val_mod=0.9),
+        calculate_harmonies(base_genesis, 0, sat_mod=0.6, val_mod=1.2)
+    ]
+elif harmony_rule == "Triad":
+    palette = [
+        calculate_harmonies(base_genesis, 0, val_mod=0.6),
+        base_genesis,
+        calculate_harmonies(base_genesis, 120),
+        calculate_harmonies(base_genesis, 240),
+        calculate_harmonies(base_genesis, 240, val_mod=0.7)
+    ]
+elif harmony_rule == "Complementary":
+    palette = [
+        calculate_harmonies(base_genesis, 0, val_mod=0.5),
+        calculate_harmonies(base_genesis, 0, val_mod=0.8),
+        base_genesis,
+        calculate_harmonies(base_genesis, 180),
+        calculate_harmonies(base_genesis, 180, val_mod=0.6)
+    ]
+elif harmony_rule == "Split Complementary":
+    palette = [
+        calculate_harmonies(base_genesis, -150),
+        calculate_harmonies(base_genesis, -30),
+        base_genesis,
+        calculate_harmonies(base_genesis, 150),
+        calculate_harmonies(base_genesis, 180)
+    ]
+elif harmony_rule == "Square":
+    palette = [
+        base_genesis,
+        calculate_harmonies(base_genesis, 90),
+        calculate_harmonies(base_genesis, 180),
+        calculate_harmonies(base_genesis, 270),
+        calculate_harmonies(base_genesis, 270, val_mod=0.6)
+    ]
+elif harmony_rule == "Compound":
+    palette = [
+        calculate_harmonies(base_genesis, -30, sat_mod=0.6),
+        calculate_harmonies(base_genesis, 30, val_mod=0.8),
+        base_genesis,
+        calculate_harmonies(base_genesis, 180, sat_mod=0.4),
+        calculate_harmonies(base_genesis, 180)
+    ]
 
-# --- EXIBIÇÃO DOS RESULTADOS ---
-st.subheader("🎨 Paleta Gerada (Convertida para o Hardware)")
+# --- MAIN INTERFACE LAYOUT ---
+col_wheel, col_values = st.columns([1, 1.2])
 
-# Componente visual para mostrar as cores lado a lado
-col1, col2, col3, col4 = st.columns(4)
+with col_wheel:
+    st.write("### VDP 9-bit Color Wheel")
 
-with col1:
-    st.markdown("**Cor Base**")
-    st.color_picker("Base", hex_base_genesis, key="p1", disabled=True)
-    st.code(f"RGB: {base_genesis}\nSGDK: {rgb_to_sgdk_hex(base_genesis)}")
+    # Render figure safely
+    fig, ax = plt.subplots(figsize=(4.5, 4.5), subplot_kw=dict(projection='polar'))
 
-with col2:
-    st.markdown("**Complementar**")
-    st.color_picker("Complementar", hex_comp_genesis, key="p2", disabled=True)
-    st.code(f"RGB: {comp_genesis}\nSGDK: {rgb_to_sgdk_hex(comp_genesis)}")
+    # Generate background using scatter instead of pcolormesh to bypass dimensions error
+    angles_bg = np.linspace(0, 2 * np.pi, 72, endpoint=False)
+    radii_bg = np.linspace(0.2, 1.0, 8)
 
-with col3:
-    st.markdown("**Tríade 1**")
-    st.color_picker("Tríade 1", hex_t1_genesis, key="p3", disabled=True)
-    st.code(f"RGB: {triade1_genesis}\nSGDK: {rgb_to_sgdk_hex(triade1_genesis)}")
+    for a in angles_bg:
+        for r_g in radii_bg:
+            r_res, g_res, b_res = colorsys.hsv_to_rgb(a / (2 * np.pi), r_g, 0.85)
+            q_r, q_g, q_b = quantize_to_genesis((int(r_res * 255), int(g_res * 255), int(b_res * 255)))
+            ax.scatter(a, r_g, color=f"#{q_r:02X}{q_g:02X}{q_b:02X}", s=40, alpha=0.9)
 
-with col4:
-    st.markdown("**Tríade 2**")
-    st.color_picker("Tríade 2", hex_t2_genesis, key="p4", disabled=True)
-    st.code(f"RGB: {triade2_genesis}\nSGDK: {rgb_to_sgdk_hex(triade2_genesis)}")
+    # Overlay lines and harmony nodes
+    for idx, color in enumerate(palette):
+        r_n, g_n, b_n = color / 255.0, color / 255.0, color / 255.0
+        h, s, v = colorsys.rgb_to_hsv(r_n, g_n, b_n)
+        rad_angle = h * 2 * np.pi
 
-# Código Pronto para o SGDK
-st.subheader("💻 Código Pronto para o SGDK (C Array)")
-sgdk_array = f"u16 my_palette[4] = {{\n    {rgb_to_sgdk_hex(base_genesis)}, {rgb_to_sgdk_hex(comp_genesis)}, {rgb_to_sgdk_hex(triade1_genesis)}, {rgb_to_sgdk_hex(triade2_genesis)}\n}};"
-st.code(sgdk_array, language="c")
+        ax.plot([0, rad_angle], [0, s], color="white", linestyle="--", alpha=0.8, linewidth=1.5)
+        node_border = "#000000" if v > 0.5 else "#FFFFFF"
+        ax.scatter(
+            rad_angle, s,
+            color=f"#{color:02X}{color:02X}{color:02X}",
+            edgecolor=node_border, s=200, zorder=10
+        )
 
+    ax.set_yticklabels([])
+    ax.set_xticklabels([])
+    ax.grid(False)
+    fig.patch.set_facecolor('none')
+    ax.set_facecolor('none')
+    st.pyplot(fig)
+
+with col_values:
+    st.write("### Current Color Palette")
+
+    cols_palette = st.columns(5)
+    for i, color in enumerate(palette):
+        with cols_palette[i]:
+            hex_color = f"#{color:02X}{color:02X}{color:02X}"
+            label_title = f"⭐ Base Color" if color == base_genesis and i == 2 else f"Color {i + 1}"
+
+            st.color_picker(label_title, hex_color, key=f"vdp_node_{i}", disabled=True)
+            st.markdown(f"**SGDK:** `{rgb_to_sgdk_hex(color)}`")
+            st.caption(f"RGB: {color}")
+
+    st.markdown("---")
+    st.write("### 💻 Export Code for Your Project")
+
+    tab_sgdk, tab_asm, tab_raw = st.tabs(["SGDK (C Array)", "Assembly (68k)", "Decimal Values"])
+
+    with tab_sgdk:
+        sgdk_code = f"// Sega Genesis Palette - Rule: {harmony_rule}\nconst u16 palette_{harmony_rule.lower().replace(' ', '_')} = {{\n    {', '.join([rgb_to_sgdk_hex(c) for c in palette])}\n}};"
+        st.code(sgdk_code, language="c")
+
+    with tab_asm:
+        asm_code = f"; Sega Genesis Palette - Rule: {harmony_rule}\nPalette_{harmony_rule.replace(' ', '_')}:\n    dc.w {', '.join([rgb_to_asm_hex(c) for c in palette])}"
+        st.code(asm_code, language="asm")
+
+    with tab_raw:
+        st.text("Raw RGB Tuple List:")
+        for idx, c in enumerate(palette):
+            st.text(f"Color {idx + 1}: {c}")
+
+st.markdown("<br><hr>", unsafe_allow_html=True)
+st.caption(
+    "Genesis Color Wheel Pro | Developed by Rodrigo Fontanella | Open-source utility tool for the retro-dev community.")
