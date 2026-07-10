@@ -20,7 +20,7 @@ def quantize_to_genesis(rgb):
 
 
 def rgb_to_sgdk_hex(rgb):
-    """Converts RGB to native SGDK C format (0x0BGR)."""
+    """Converts RGB to native SGDK C format (0x0BGR) using 3 nibbles."""
     r, g, b = rgb
     r_vdp = VDP_STEPS.index(r) * 2
     g_vdp = VDP_STEPS.index(g) * 2
@@ -132,10 +132,9 @@ col_wheel, col_values = st.columns([1, 1.2])
 with col_wheel:
     st.write("### VDP 9-bit Color Wheel")
 
-    # Render figure safely
     fig, ax = plt.subplots(figsize=(4.5, 4.5), subplot_kw=dict(projection='polar'))
 
-    # Generate background using scatter instead of pcolormesh to bypass dimensions error
+    # Generate background elements safely
     angles_bg = np.linspace(0, 2 * np.pi, 72, endpoint=False)
     radii_bg = np.linspace(0.2, 1.0, 8)
 
@@ -145,9 +144,12 @@ with col_wheel:
             q_r, q_g, q_b = quantize_to_genesis((int(r_res * 255), int(g_res * 255), int(b_res * 255)))
             ax.scatter(a, r_g, color=f"#{q_r:02X}{q_g:02X}{q_b:02X}", s=40, alpha=0.9)
 
-    # Overlay lines and harmony nodes
+    # Overlay lines and harmony nodes (Corrigido para evitar TypeError)
     for idx, color in enumerate(palette):
-        r_n, g_n, b_n = color / 255.0, color / 255.0, color / 255.0
+        # Convertendo a tupla para numpy array antes da divisão
+        color_array = np.array(color)
+        r_n, g_n, b_n = color_array / 255.0
+
         h, s, v = colorsys.rgb_to_hsv(r_n, g_n, b_n)
         rad_angle = h * 2 * np.pi
 
@@ -155,7 +157,7 @@ with col_wheel:
         node_border = "#000000" if v > 0.5 else "#FFFFFF"
         ax.scatter(
             rad_angle, s,
-            color=f"#{color:02X}{color:02X}{color:02X}",
+            color=f"#{color[0]:02X}{color[1]:02X}{color[2]:02X}",
             edgecolor=node_border, s=200, zorder=10
         )
 
@@ -172,7 +174,7 @@ with col_values:
     cols_palette = st.columns(5)
     for i, color in enumerate(palette):
         with cols_palette[i]:
-            hex_color = f"#{color:02X}{color:02X}{color:02X}"
+            hex_color = f"#{color[0]:02X}{color[1]:02X}{color[2]:02X}"
             label_title = f"⭐ Base Color" if color == base_genesis and i == 2 else f"Color {i + 1}"
 
             st.color_picker(label_title, hex_color, key=f"vdp_node_{i}", disabled=True)
