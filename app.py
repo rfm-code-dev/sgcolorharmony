@@ -141,9 +141,10 @@ with col_wheel:
             
     # Overlay lines and harmony nodes
     for idx, color in enumerate(palette):
-        color_array = np.array(color)
-        r_n, g_n, b_n = color_array / 255.0
+        # Convert explicitly to clean integers for exact hex string generation
+        r_int, g_int, b_int = int(color[0]), int(color[1]), int(color[2])
         
+        r_n, g_n, b_n = r_int / 255.0, g_int / 255.0, b_int / 255.0
         h, s, v = colorsys.rgb_to_hsv(r_n, g_n, b_n)
         rad_angle = h * 2 * np.pi
         
@@ -151,7 +152,7 @@ with col_wheel:
         node_border = "#000000" if v > 0.5 else "#FFFFFF"
         ax.scatter(
             rad_angle, s, 
-            color=f"#{color:02X}{color:02X}{color:02X}", 
+            color=f"#{r_int:02X}{g_int:02X}{b_int:02X}", 
             edgecolor=node_border, s=200, zorder=10
         )
         
@@ -168,10 +169,9 @@ with col_values:
     cols_palette = st.columns(5)
     for i, color in enumerate(palette):
         with cols_palette[i]:
-            hex_color = f"#{color:02X}{color:02X}{color:02X}"
+            hex_color = f"#{color[0]:02X}{color[1]:02X}{color[2]:02X}"
             label_title = f"⭐ Base Color" if color == base_genesis and i == 2 else f"Color {i+1}"
             
-            # CHAVE DINÂMICA CORRIGIDA: Inclui o hex_color para forçar o Streamlit a redesenhar o bloco
             st.color_picker(label_title, hex_color, key=f"vdp_node_{i}_{hex_color.replace('#', '')}", disabled=True)
             st.markdown(f"**SGDK:** `{rgb_to_sgdk_hex(color)}`")
             st.caption(f"RGB: {color}")
