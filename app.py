@@ -7,17 +7,15 @@ import numpy as np
 st.set_page_config(page_title="Genesis Color Wheel Pro", page_icon="🎮", layout="wide")
 
 st.title("🎮 Sega Genesis / Mega Drive Color Wheel Pro")
-st.markdown(
-    "Create and calculate color harmonies in the style of **Adobe Color**, locked strictly to the **512 colors (9-bit VDP RGB)** of the original hardware.")
+st.markdown("Create and calculate color harmonies in the style of **Adobe Color**, locked strictly to the **512 colors (9-bit VDP RGB)** of the original hardware.")
 
 # --- HARDWARE TECHNICAL CONSTANTS ---
+# Valid intensity steps for the Mega Drive VDP (0 to 7 mapped to 0-255 scale)
 VDP_STEPS = [0, 36, 73, 109, 146, 182, 219, 255]
-
 
 def quantize_to_genesis(rgb):
     """Snaps any standard RGB color to the nearest native Sega Genesis VDP color."""
     return tuple(min(VDP_STEPS, key=lambda x: abs(x - c)) for c in rgb)
-
 
 def rgb_to_sgdk_hex(rgb):
     """Converts RGB to native SGDK C format (0x0BGR) using 3 nibbles."""
@@ -28,7 +26,6 @@ def rgb_to_sgdk_hex(rgb):
     vdp_value = (b_vdp << 8) | (g_vdp << 4) | r_vdp
     return f"0x{vdp_value:04X}"
 
-
 def rgb_to_asm_hex(rgb):
     """Converts RGB to traditional Assembly 68k format ($0BGR)."""
     r, g, b = rgb
@@ -38,19 +35,17 @@ def rgb_to_asm_hex(rgb):
     vdp_value = (b_vdp << 8) | (g_vdp << 4) | r_vdp
     return f"${vdp_value:04X}"
 
-
 def calculate_harmonies(base_rgb, angle, sat_mod=1.0, val_mod=1.0):
     """Rotates the Hue in HSV space, applies modifiers, and quantizes back to 9-bit RGB."""
     r, g, b = [c / 255.0 for c in base_rgb]
     h, s, v = colorsys.rgb_to_hsv(r, g, b)
-
+    
     h_new = (h + (angle / 360.0)) % 1.0
     s_new = max(0.0, min(1.0, s * sat_mod))
     v_new = max(0.0, min(1.0, v * val_mod))
-
+    
     r_res, g_res, b_res = colorsys.hsv_to_rgb(h_new, s_new, v_new)
     return quantize_to_genesis((int(r_res * 255), int(g_res * 255), int(b_res * 255)))
-
 
 # --- SIDEBAR CONFIGURATION ---
 st.sidebar.header("🕹️ Harmony Panel")
@@ -131,36 +126,35 @@ col_wheel, col_values = st.columns([1, 1.2])
 
 with col_wheel:
     st.write("### VDP 9-bit Color Wheel")
-
+    
     fig, ax = plt.subplots(figsize=(4.5, 4.5), subplot_kw=dict(projection='polar'))
-
+    
     # Generate background elements safely
     angles_bg = np.linspace(0, 2 * np.pi, 72, endpoint=False)
     radii_bg = np.linspace(0.2, 1.0, 8)
-
+    
     for a in angles_bg:
         for r_g in radii_bg:
             r_res, g_res, b_res = colorsys.hsv_to_rgb(a / (2 * np.pi), r_g, 0.85)
             q_r, q_g, q_b = quantize_to_genesis((int(r_res * 255), int(g_res * 255), int(b_res * 255)))
             ax.scatter(a, r_g, color=f"#{q_r:02X}{q_g:02X}{q_b:02X}", s=40, alpha=0.9)
-
-    # Overlay lines and harmony nodes (Corrigido para evitar TypeError)
+            
+    # Overlay lines and harmony nodes
     for idx, color in enumerate(palette):
-        # Convertendo a tupla para numpy array antes da divisão
         color_array = np.array(color)
         r_n, g_n, b_n = color_array / 255.0
-
+        
         h, s, v = colorsys.rgb_to_hsv(r_n, g_n, b_n)
         rad_angle = h * 2 * np.pi
-
+        
         ax.plot([0, rad_angle], [0, s], color="white", linestyle="--", alpha=0.8, linewidth=1.5)
         node_border = "#000000" if v > 0.5 else "#FFFFFF"
         ax.scatter(
-            rad_angle, s,
-            color=f"#{color[0]:02X}{color[1]:02X}{color[2]:02X}",
+            rad_angle, s, 
+            color=f"#{color:02X}{color:02X}{color:02X}", 
             edgecolor=node_border, s=200, zorder=10
         )
-
+        
     ax.set_yticklabels([])
     ax.set_xticklabels([])
     ax.grid(False)
@@ -170,35 +164,35 @@ with col_wheel:
 
 with col_values:
     st.write("### Current Color Palette")
-
+    
     cols_palette = st.columns(5)
     for i, color in enumerate(palette):
         with cols_palette[i]:
-            hex_color = f"#{color[0]:02X}{color[1]:02X}{color[2]:02X}"
-            label_title = f"⭐ Base Color" if color == base_genesis and i == 2 else f"Color {i + 1}"
-
-            st.color_picker(label_title, hex_color, key=f"vdp_node_{i}", disabled=True)
+            hex_color = f"#{color:02X}{color:02X}{color:02X}"
+            label_title = f"⭐ Base Color" if color == base_genesis and i == 2 else f"Color {i+1}"
+            
+            # CHAVE DINÂMICA CORRIGIDA: Inclui o hex_color para forçar o Streamlit a redesenhar o bloco
+            st.color_picker(label_title, hex_color, key=f"vdp_node_{i}_{hex_color.replace('#', '')}", disabled=True)
             st.markdown(f"**SGDK:** `{rgb_to_sgdk_hex(color)}`")
             st.caption(f"RGB: {color}")
 
     st.markdown("---")
     st.write("### 💻 Export Code for Your Project")
-
+    
     tab_sgdk, tab_asm, tab_raw = st.tabs(["SGDK (C Array)", "Assembly (68k)", "Decimal Values"])
-
+    
     with tab_sgdk:
         sgdk_code = f"// Sega Genesis Palette - Rule: {harmony_rule}\nconst u16 palette_{harmony_rule.lower().replace(' ', '_')} = {{\n    {', '.join([rgb_to_sgdk_hex(c) for c in palette])}\n}};"
         st.code(sgdk_code, language="c")
-
+        
     with tab_asm:
         asm_code = f"; Sega Genesis Palette - Rule: {harmony_rule}\nPalette_{harmony_rule.replace(' ', '_')}:\n    dc.w {', '.join([rgb_to_asm_hex(c) for c in palette])}"
         st.code(asm_code, language="asm")
-
+        
     with tab_raw:
         st.text("Raw RGB Tuple List:")
         for idx, c in enumerate(palette):
-            st.text(f"Color {idx + 1}: {c}")
+            st.text(f"Color {idx+1}: {c}")
 
 st.markdown("<br><hr>", unsafe_allow_html=True)
-st.caption(
-    "Genesis Color Wheel Pro | Developed by Rodrigo Fontanella | Open-source utility tool for the retro-dev community.")
+st.caption("Genesis Color Wheel Pro | Conceptualized & Tested by Rodrigo Fontanella | Code co-generated via AI Assist | Open-source community tool.")
