@@ -4,9 +4,9 @@ import matplotlib.pyplot as plt
 import numpy as np
 
 # --- PAGE CONFIGURATION ---
-st.set_page_config(page_title="Genesis Color Wheel Pro", page_icon="🎮", layout="wide")
+st.set_page_config(page_title="Genesis Color Wheel", page_icon="🎮", layout="wide")
 
-st.title("🎮 Sega Genesis / Mega Drive Color Wheel Pro")
+st.title("🎮 Sega Genesis / Mega Drive Color Wheel")
 st.markdown("Create and calculate color harmonies in the style of **Adobe Color**, locked strictly to the **512 colors (9-bit VDP RGB)** of the original hardware.")
 
 # --- HARDWARE TECHNICAL CONSTANTS ---
