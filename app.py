@@ -79,12 +79,14 @@ vdp_g = st.sidebar.slider("Green Channel (VDP)", min_value=0, max_value=7, value
 vdp_b = st.sidebar.slider("Blue Channel (VDP)", min_value=0, max_value=7, value=4)
 
 base_genesis = (VDP_STEPS[vdp_r], VDP_STEPS[vdp_g], VDP_STEPS[vdp_b])
-base_hex = f"#{base_genesis:02X}{base_genesis:02X}{base_genesis:02X}"
+
+# FIXED: Explicitly unrolling the tuple elements to prevent the baseline formatting error
+base_hex = f"#{base_genesis[0]:02X}{base_genesis[1]:02X}{base_genesis[2]:02X}"
 
 st.sidebar.markdown("**Selected Base Preview:**")
 st.sidebar.color_picker("Hardware Base Color", base_hex, key=f"sb_preview_{base_hex.replace('#', '')}")
 
-# Extract active hardware brightness/value context dynamically
+# Extract active hardware brightness
 r_norm, g_norm, b_norm = base_genesis[0]/255.0, base_genesis[1]/255.0, base_genesis[2]/255.0
 _, _, dynamic_value = colorsys.rgb_to_hsv(r_norm, g_norm, b_norm)
 
@@ -153,25 +155,20 @@ col_wheel, col_values = st.columns([1, 1.2])
 with col_wheel:
     st.write("### VDP 9-bit Color Wheel")
     
-    # Reduzindo o tamanho físico da roda na tela para 3.2 (Item 1)
+    # Figure footprint reduced to 3.2 for sleek sidebar proportions
     fig, ax = plt.subplots(figsize=(3.2, 3.2), subplot_kw=dict(projection='polar'))
     
-    # BULLETPROOF SCATTER ENGINE: Dense point matrix for total type safety and stable colors
-    # Centro nasce branco, borda satura, e a roda obedece ao brilho dinâmico (Item 2)
+    # Dense scatter pixel matrix for dynamic shading without data types breaking
     angles_bg = np.linspace(0, 2 * np.pi, 64, endpoint=False)
-    # Distribuição quadrática para agrupar as bolinhas de forma uniforme perto da borda externa
     radii_bg = np.sqrt(np.linspace(0.01, 1.0, 12))
     
     for a in angles_bg:
         for r_g in radii_bg:
-            # Multiplicamos o raio e o brilho para fazer a física real do Adobe Color
             r_res, g_res, b_res = colorsys.hsv_to_rgb(a / (2 * np.pi), r_g, max(0.0, dynamic_value))
             q_r, q_g, q_b = quantize_to_genesis((int(r_res * 255), int(g_res * 255), int(b_res * 255)))
             
-            # Tamanho fixo confortável e uniforme
             ax.scatter(a, r_g, color=f"#{q_r:02X}{q_g:02X}{q_b:02X}", s=25, alpha=0.9, linewidths=0, zorder=1)
             
-    # Linhas de conexão e nós principais travados na frente (zorder=10)
     for idx, color in enumerate(palette):
         r_v, g_v, b_v = int(color[0]), int(color[1]), int(color[2])
         r_n, g_n, b_n = r_v / 255.0, g_v / 255.0, b_v / 255.0
@@ -201,6 +198,7 @@ with col_values:
     
     for i, color in enumerate(palette):
         with cols_palette[i]:
+            # FIXED: Flattening individual array indices explicitly
             hex_color = f"#{color[0]:02X}{color[1]:02X}{color[2]:02X}"
             label_title = f"⭐ Base Color" if color == base_genesis and i == 2 else f"Color {i+1}"
             
@@ -228,6 +226,7 @@ for i in range(16):
         st.markdown(f"<center><b>Slot {i}</b></center>", unsafe_allow_html=True)
         if i < len(st.session_state.custom_palette):
             slot_color = st.session_state.custom_palette[i]
+            # FIXED: Unrolled color indices safely
             slot_hex = f"#{slot_color[0]:02X}{slot_color[1]:02X}{slot_color[2]:02X}"
             st.color_picker(f"S{i}", slot_hex, key=f"slot_box_{i}_{slot_hex.replace('#','')}", label_visibility="collapsed")
             st.caption(f"<center><code>{rgb_to_sgdk_hex(slot_color)}</code></center>", unsafe_allow_html=True)
@@ -269,3 +268,4 @@ else:
 # --- FOOTER ---
 st.markdown("<br><hr>", unsafe_allow_html=True)
 st.caption("Sega Genesis / Mega Drive Color Wheel | Conceptualized & Tested by Rodrigo Fontanella | Code co-generated via AI Assist | Open-source community tool.")
+
