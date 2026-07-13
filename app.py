@@ -101,7 +101,12 @@ vdp_g = st.sidebar.slider("Green Channel (VDP)", min_value=0, max_value=7, value
 vdp_b = st.sidebar.slider("Blue Channel (VDP)", min_value=0, max_value=7, value=4)
 
 base_genesis = (VDP_STEPS[vdp_r], VDP_STEPS[vdp_g], VDP_STEPS[vdp_b])
-base_hex = f"#{base_genesis:02X}{base_genesis:02X}{base_genesis:02X}"
+
+# DEFINITIVE CACHE FIX: Safely unpacking to dedicated clean integer variables before string formatting
+r_hex_val = int(base_genesis[0])
+g_hex_val = int(base_genesis[1])
+b_hex_val = int(base_genesis[2])
+base_hex = f"#{r_hex_val:02X}{g_hex_val:02X}{b_hex_val:02X}"
 
 st.sidebar.markdown("**Selected Base Preview:**")
 st.sidebar.color_picker("Hardware Base Color", base_hex, key=f"sb_preview_{base_hex.replace('#', '')}")
@@ -252,7 +257,8 @@ with col_values:
     
     for i, color in enumerate(palette):
         with cols_palette[i]:
-            hex_color = f"#{color[0]:02X}{color[1]:02X}{color[2]:02X}"
+            r_c, g_c, b_c = int(color[0]), int(color[1]), int(color[2])
+            hex_color = f"#{r_c:02X}{g_c:02X}{b_c:02X}"
             label_title = f"⭐ Base Color" if color == base_genesis and i == 2 else f"Color {i+1}"
             
             st.color_picker(label_title, hex_color, key=f"vdp_node_{i}_{hex_color.replace('#', '')}")
@@ -285,7 +291,8 @@ for i in range(16):
         slot_data = st.session_state.custom_palette[i]
         
         if slot_data is not None:
-            slot_hex = f"#{slot_data[0]:02X}{slot_data[1]:02X}{slot_data[2]:02X}"
+            r_sl, g_sl, b_sl = int(slot_data[0]), int(slot_data[1]), int(slot_data[2])
+            slot_hex = f"#{r_sl:02X}{g_sl:02X}{b_sl:02X}"
             st.color_picker(f"S{i}", slot_hex, key=f"slot_box_{i}_{slot_hex.replace('#','')}", label_visibility="collapsed")
             st.caption(f"<center><code>{rgb_to_sgdk_hex(slot_data)}</code></center>", unsafe_allow_html=True)
             
@@ -297,7 +304,6 @@ for i in range(16):
                         st.session_state.custom_palette[i-1], st.session_state.custom_palette[i] = st.session_state.custom_palette[i], st.session_state.custom_palette[i-1]
                         st.rerun()
                 else:
-                    # IMPLEMENTATION OF YOUR IDEA: Invisible 100% transparent HTML placeholder block
                     st.markdown("<div style='height:28px; width:100%; visibility:hidden;'></div>", unsafe_allow_html=True)
             
             with clear_cell:
@@ -311,7 +317,6 @@ for i in range(16):
                         st.session_state.custom_palette[i+1], st.session_state.custom_palette[i] = st.session_state.custom_palette[i], st.session_state.custom_palette[i+1]
                         st.rerun()
                 else:
-                    # IMPLEMENTATION OF YOUR IDEA: Invisible 100% transparent HTML placeholder block
                     st.markdown("<div style='height:28px; width:100%; visibility:hidden;'></div>", unsafe_allow_html=True)
         else:
             st.color_picker(f"S{i}", "#222222", key=f"slot_box_empty_{i}", disabled=True, label_visibility="collapsed")
