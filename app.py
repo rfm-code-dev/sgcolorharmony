@@ -9,7 +9,7 @@ st.set_page_config(page_title="Sega Genesis / Mega Drive Color Wheel", page_icon
 st.title("🎮 Sega Genesis / Mega Drive Color Wheel")
 st.markdown("Create and calculate color harmonies locked strictly to the **512 colors (9-bit VDP RGB)** of the original hardware.")
 
-# --- INJECT CUSTOM CSS TO REMOVE ROLLOVER AND FORCE PERFECT VERTICAL ALIGNMENT ---
+# --- INJECT CUSTOM CSS FOR PERFECT ALIGNMENT AND SYMMETRY ---
 st.markdown("""
     <style>
         /* Disable mouse selection events on disabled/preview color picks */
@@ -21,7 +21,7 @@ st.markdown("""
             pointer-events: auto !important;
         }
         
-        /* FIX: Center, block-stretch, and force uniform line height on all slot buttons */
+        /* Center, block-stretch, and force uniform line height on all slot buttons */
         div[data-testid="stHorizontalBlock"] button {
             display: flex !important;
             align-items: center !important;
@@ -34,8 +34,11 @@ st.markdown("""
             line-height: 1 !important;
         }
         
-        /* Reduce the gap between button columns inside each slot */
-        div[data-testid="stHorizontalBlock"] div[data-testid="column"] {
+        /* Eliminate gaps and padding that cause misalignment */
+        div[data-testid="column"] [data-testid="stHorizontalBlock"] {
+            gap: 2px !important;
+        }
+        div[data-testid="column"] [data-testid="stHorizontalBlock"] div[data-testid="column"] {
             padding: 0px 1px !important;
         }
     </style>
@@ -98,7 +101,7 @@ vdp_g = st.sidebar.slider("Green Channel (VDP)", min_value=0, max_value=7, value
 vdp_b = st.sidebar.slider("Blue Channel (VDP)", min_value=0, max_value=7, value=4)
 
 base_genesis = (VDP_STEPS[vdp_r], VDP_STEPS[vdp_g], VDP_STEPS[vdp_b])
-base_hex = f"#{base_genesis[0]:02X}{base_genesis[1]:02X}{base_genesis[2]:02X}"
+base_hex = f"#{base_genesis:02X}{base_genesis:02X}{base_genesis:02X}"
 
 st.sidebar.markdown("**Selected Base Preview:**")
 st.sidebar.color_picker("Hardware Base Color", base_hex, key=f"sb_preview_{base_hex.replace('#', '')}")
@@ -242,6 +245,7 @@ with col_wheel:
     ax.set_facecolor('none')
     st.pyplot(fig)
 
+
 with col_values:
     st.write("### Calculated Harmonies")
     cols_palette = st.columns(5)
@@ -293,7 +297,8 @@ for i in range(16):
                         st.session_state.custom_palette[i-1], st.session_state.custom_palette[i] = st.session_state.custom_palette[i], st.session_state.custom_palette[i-1]
                         st.rerun()
                 else:
-                    st.markdown("<div style='height:28px;'></div>", unsafe_allow_html=True)
+                    # IMPLEMENTATION OF YOUR IDEA: Invisible 100% transparent HTML placeholder block
+                    st.markdown("<div style='height:28px; width:100%; visibility:hidden;'></div>", unsafe_allow_html=True)
             
             with clear_cell:
                 if st.button("X", key=f"clear_slot_btn_{i}", help="Delete color from this slot"):
@@ -306,7 +311,8 @@ for i in range(16):
                         st.session_state.custom_palette[i+1], st.session_state.custom_palette[i] = st.session_state.custom_palette[i], st.session_state.custom_palette[i+1]
                         st.rerun()
                 else:
-                    st.markdown("<div style='height:28px;'></div>", unsafe_allow_html=True)
+                    # IMPLEMENTATION OF YOUR IDEA: Invisible 100% transparent HTML placeholder block
+                    st.markdown("<div style='height:28px; width:100%; visibility:hidden;'></div>", unsafe_allow_html=True)
         else:
             st.color_picker(f"S{i}", "#222222", key=f"slot_box_empty_{i}", disabled=True, label_visibility="collapsed")
             st.caption("<center><code style='color:gray;'>0x----</code></center>", unsafe_allow_html=True)
