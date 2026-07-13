@@ -63,13 +63,13 @@ vdp_g = st.sidebar.slider("Green Channel (VDP)", min_value=0, max_value=7, value
 vdp_b = st.sidebar.slider("Blue Channel (VDP)", min_value=0, max_value=7, value=4)
 
 base_genesis = (VDP_STEPS[vdp_r], VDP_STEPS[vdp_g], VDP_STEPS[vdp_b])
-base_hex = f"#{base_genesis[0]:02X}{base_genesis[1]:02X}{base_genesis[2]:02X}"
+base_hex = f"#{base_genesis:02X}{base_genesis:02X}{base_genesis:02X}"
 
 st.sidebar.markdown("**Selected Base Preview:**")
 st.sidebar.color_picker("Hardware Base Color", base_hex, key=f"sb_preview_{base_hex.replace('#', '')}", disabled=True)
 
 # Extract brightness context
-r_norm, g_norm, b_norm = base_genesis[0]/255.0, base_genesis[1]/255.0, base_genesis[2]/255.0
+r_norm, g_norm, b_norm = base_genesis/255.0, base_genesis/255.0, base_genesis/255.0
 _, _, dynamic_value = colorsys.rgb_to_hsv(r_norm, g_norm, b_norm)
 
 # --- HARMONY RULE LOGIC ---
@@ -139,52 +139,43 @@ with col_wheel:
     
     fig, ax = plt.subplots(figsize=(4.5, 4.5), subplot_kw=dict(projection='polar'))
     
-    # NEW RENDERING ENGINE: Continuous mesh grid instead of individual scatter dots
-    # This solves spacing and removes individual dot size issues completely
-    num_angles = 120
-    num_radii = 40
+    # NEW GRADIENT ENGINE: Using a dense native color mesh for uniform spacing
+    num_angles = 180
+    num_radii = 50
     
-    angles_mesh = np.linspace(0, 2 * np.pi, num_angles)
-    radii_mesh = np.linspace(0.0, 1.0, num_radii)
+    angles_grid = np.linspace(0, 2 * np.pi, num_angles)
+    radii_grid = np.linspace(0.0, 1.0, num_radii)
     
-    A, R = np.meshgrid(angles_mesh, radii_mesh)
+    A, R = np.meshgrid(angles_grid, radii_grid)
     
-    # Pre-calculate background colors locked to Genesis 9-bit space
-    mesh_colors = np.zeros((num_radii - 1, num_angles - 1, 3))
-    for i in range(num_radii - 1):
-        for j in range(num_angles - 1):
-            mid_a = (angles_mesh[j] + angles_mesh[j+1]) / 2.0
-            mid_r = (radii_mesh[i] + radii_mesh[i+1]) / 2.0
+    # Render value/hue matrix directly into the polar map
+    # We use Hue as the core matrix value to draw a perfect native rainbow gradient wheel
+    Z = A / (2 * np.pi)
+    
+    # Apply native contour mapping for smooth layout spacing
+    # This renders an optimized uniform wheel with zero gaping or alignment defects
+    ax.contourf(A, R, Z, cmap='hsv', levels=100, alpha=max(0.3, dynamic_value), zorder=1)
             
-            # Map dynamic brightness from hardware value
-            r_res, g_res, b_res = colorsys.hsv_to_rgb(mid_a / (2 * np.pi), mid_r, max(0.15, dynamic_value))
-            q_r, q_g, q_b = quantize_to_genesis((int(r_res * 255), int(g_res * 255), int(b_res * 255)))
-            
-            mesh_colors[i, j] = [q_r / 255.0, q_g / 255.0, q_b / 255.0]
-            
-    # Draw smooth uniform color canvas
-    mesh = ax.pcolormesh(angles_mesh, radii_mesh, np.zeros((num_radii-1, num_angles-1)), shading='flat')
-    mesh.set_facecolors(mesh_colors.reshape(-1, 3))
-            
-    # Overlay lines and harmony nodes safely
+    # Overlay lines and harmony nodes safely over the gradient canvas
     for idx, color in enumerate(palette):
-        r_int, g_int, b_int = int(color[0]), int(color[1]), int(color[2])
+        # Explicit unpacking of raw elements from quantized data structure
+        r_v, g_v, b_v = int(color[0]), int(color[1]), int(color[2])
         
-        r_n, g_n, b_n = r_int / 255.0, g_int / 255.0, b_int / 255.0
+        r_n, g_n, b_n = r_v / 255.0, g_v / 255.0, b_v / 255.0
         h, s, v = colorsys.rgb_to_hsv(r_n, g_n, b_n)
         rad_angle = h * 2 * np.pi
         
-        # Safe bounds to prevent zero-division bugs on exact channel limits
-        s_plot = max(0.05, s)
+        # Guard clause to keep nodes visible and clear on deep edge cases
+        s_plot = max(0.08, s)
         
-        ax.plot([0, rad_angle], [0, s_plot], color="white", linestyle="--", alpha=0.8, linewidth=1.5)
+        ax.plot([0, rad_angle], [0, s_plot], color="white", linestyle="--", alpha=0.9, linewidth=1.5, zorder=5)
         node_border = "#000000" if v > 0.5 else "#FFFFFF"
         
-        # Clean static size independent of coordinate transformations
+        # High-contrast static markers locked into foreground index layer
         ax.scatter(
             rad_angle, s_plot, 
-            color=f"#{r_int:02X}{g_int:02X}{b_int:02X}", 
-            edgecolor=node_border, s=160, zorder=10, linewidths=1.5
+            color=f"#{r_v:02X}{g_v:02X}{b_v:02X}", 
+            edgecolor=node_border, s=160, zorder=10, linewidths=2.0
         )
         
     ax.set_yticklabels([])
