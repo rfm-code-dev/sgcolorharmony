@@ -149,7 +149,8 @@ with col_wheel:
     A, R = np.meshgrid(angles_grid, radii_grid)
     Z = A / (2 * np.pi)
     
-    ax.contourf(A, R, Z, cmap='hsv', levels=100, alpha=max(0.3, dynamic_value), zorder=1)
+    # FIX: Alpha set to 1.0 (opaque) to prevent background bled-through muting the tone brightness
+    ax.contourf(A, R, Z, cmap='hsv', levels=100, alpha=1.0, zorder=1)
             
     for idx, color in enumerate(palette):
         r_v, g_v, b_v = int(color[0]), int(color[1]), int(color[2])
@@ -246,4 +247,3 @@ else:
 # --- FOOTER ---
 st.markdown("<br><hr>", unsafe_allow_html=True)
 st.caption("Sega Genesis / Mega Drive Color Wheel | Conceptualized & Tested by Rodrigo Fontanella | Code co-generated via AI Assist | Open-source community tool.")
-
