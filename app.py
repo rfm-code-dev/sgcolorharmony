@@ -9,6 +9,60 @@ st.set_page_config(page_title="Sega Genesis / Mega Drive Color Wheel", page_icon
 st.title("🎮 Sega Genesis / Mega Drive Color Wheel")
 st.markdown("Create and calculate color harmonies locked strictly to the **512 colors (9-bit VDP RGB)** of the original hardware.")
 
+# --- INJECT CUSTOM CSS FOR PERFECT GLOBAL ALIGNMENT AND SYMMETRY ---
+st.markdown("""
+    <style>
+        /* Force absolute horizontal centralization on ALL components inside layout columns */
+        div[data-testid="column"] {
+            display: flex !important;
+            flex-direction: column !important;
+            align-items: center !important;
+            text-align: center !important;
+            justify-content: flex-start !important;
+            width: 100% !important;
+        }
+        
+        /* Force 'Add' and wrapper button divs to align to the absolute center of their grids */
+        div.stButton, div[data-testid="stHorizontalBlock"] div.stButton {
+            display: flex !important;
+            justify-content: center !important;
+            align-items: center !important;
+            margin: 0 auto !important;
+            width: 100% !important;
+        }
+        
+        /* Reset markdown and caption elements to align text natively in the center */
+        div[data-testid="stMarkdown"], div[data-testid="stCaptionBlock"], p, center, b, code {
+            display: block !important;
+            text-align: center !important;
+            width: 100% !important;
+            margin: 0 auto !important;
+        }
+        
+        /* Force uniform line height and design footprint on all slot controls */
+        div[data-testid="stHorizontalBlock"] button, div.stButton > button {
+            display: flex !important;
+            align-items: center !important;
+            justify-content: center !important;
+            margin: 0 auto !important;
+            padding: 2px 0px !important;
+            height: 28px !important;
+            width: 100% !important;
+            text-align: center !important;
+            line-height: 1 !important;
+        }
+        
+        /* Eliminate unexpected layout padding issues */
+        div[data-testid="column"] [data-testid="stHorizontalBlock"] {
+            gap: 2px !important;
+            width: 100% !important;
+        }
+        div[data-testid="column"] [data-testid="stHorizontalBlock"] div[data-testid="column"] {
+            padding: 0px 1px !important;
+        }
+    </style>
+""", unsafe_allow_html=True)
+
 # --- HARDWARE TECHNICAL CONSTANTS ---
 VDP_STEPS = (0, 36, 73, 109, 146, 182, 219, 255)
 
@@ -73,7 +127,12 @@ b_hex_val = int(base_genesis[2])
 base_hex = f"#{r_hex_val:02X}{g_hex_val:02X}{b_hex_val:02X}"
 
 st.sidebar.markdown("**Selected Base Preview:**")
-st.sidebar.color_picker("Hardware Base Color", base_hex, key=f"sb_preview_{base_hex.replace('#', '')}")
+# Envelopando o preview da barra lateral em HTML puro para mantê-lo centralizado e sem rollover bugado
+st.sidebar.markdown(f"""
+    <div style="display:flex; justify-content:center; align-items:center; width:100%; margin: 5px 0;">
+        <div style="width:50px; height:30px; background-color:{base_hex}; border-radius:4px; border:2px solid #555; box-shadow:0px 2px 4px rgba(0,0,0,0.3);"></div>
+    </div>
+""", unsafe_allow_html=True)
 
 # --- IMPORT ASEPRITE .GPL PALETTE ---
 st.sidebar.markdown("---")
@@ -221,21 +280,20 @@ with col_values:
     
     for i, color in enumerate(palette):
         with cols_palette[i]:
-            # NATIVE FIX: Wrapping element into an explicit center container to bypass browser alignments
             with st.container():
                 r_c, g_c, b_c = int(color[0]), int(color[1]), int(color[2])
                 hex_color = f"#{r_c:02X}{g_c:02X}{b_c:02X}"
                 label_title = f"⭐ Base" if color == base_genesis and i == 2 else f"Color {i+1}"
                 
-                # HTML template injected inside the container forcing true horizontal lock
-                st.markdown(f"<div style='text-align:center; font-weight:bold; font-size:14px; margin-bottom:5px;'>{label_title}</div>", unsafe_allow_html=True)
-                
-                # Render color box picker
-                st.color_picker(label_title, hex_color, key=f"vdp_node_{i}_{hex_color.replace('#', '')}", label_visibility="collapsed")
-                
-                st.markdown(f"<div style='text-align:center; margin-top:4px;'><code>{rgb_to_sgdk_hex(color)}</code></div>", unsafe_allow_html=True)
-                st.markdown(f"<div style='text-align:center; color:gray; font-size:11px;'>({r_c},{g_c},{b_c})</div>", unsafe_allow_html=True)
-                st.markdown("<div style='height:4px;'></div>", unsafe_allow_html=True)
+                # REVOLUTIONARY IMPLEMENTATION: Replaced st.color_picker with 100% perfectly centered custom HTML bricks
+                st.markdown(f"""
+                    <div style="display:flex; flex-direction:column; align-items:center; width:100%; text-align:center;">
+                        <div style="font-weight:bold; font-size:14px; margin-bottom:5px;">{label_title}</div>
+                        <div style="width:44px; height:44px; background-color:{hex_color}; border-radius:4px; border:2px solid #555; box-shadow:0px 2px 4px rgba(0,0,0,0.25); margin-bottom:6px;"></div>
+                        <div style="margin-bottom:2px;"><code>{rgb_to_sgdk_hex(color)}</code></div>
+                        <div style="color:gray; font-size:11px; margin-bottom:6px;">({r_c},{g_c},{b_c})</div>
+                    </div>
+                """, unsafe_allow_html=True)
                 
                 if st.button("➕ Add", key=f"add_btn_{i}_{hex_color.replace('#', '')}"):
                     inserted = False
@@ -249,7 +307,6 @@ with col_values:
                     else:
                         st.sidebar.error("All 16 slots are full!")
 
-    # SUGGESTION FULFILLED: Informative guidance box moved right below the Calculated Harmonies column block
     st.markdown("<div style='height:15px;'></div>", unsafe_allow_html=True)
     if not any(c is not None for c in st.session_state.custom_palette):
         st.info("💡 Add colors using the **➕ Add** buttons above to populate your 16-color workspace and unlock the export generator panel below.")
@@ -273,8 +330,14 @@ for i in range(16):
             with st.container():
                 r_sl, g_sl, b_sl = int(slot_data[0]), int(slot_data[1]), int(slot_data[2])
                 slot_hex = f"#{r_sl:02X}{g_sl:02X}{b_sl:02X}"
-                st.color_picker(f"S{i}", slot_hex, key=f"slot_box_{i}_{slot_hex.replace('#','')}", label_visibility="collapsed")
-                st.markdown(f"<center><code>{rgb_to_sgdk_hex(slot_data)}</code></center>", unsafe_allow_html=True)
+                
+                # REVOLUTIONARY IMPLEMENTATION: Native HTML brick layout centers seamlessly without right-shifting
+                st.markdown(f"""
+                    <div style="display:flex; flex-direction:column; align-items:center; width:100%; text-align:center; margin-bottom:5px;">
+                        <div style="width:40px; height:44px; background-color:{slot_hex}; border-radius:4px; border:2px solid #555; box-shadow:0px 2px 4px rgba(0,0,0,0.2); margin-bottom:4px;"></div>
+                        <code>{rgb_to_sgdk_hex(slot_data)}</code>
+                    </div>
+                """, unsafe_allow_html=True)
                 
                 move_left, clear_cell, move_right = st.columns(3)
                 
@@ -300,9 +363,14 @@ for i in range(16):
                         st.markdown("<div style='height:28px; width:100%; visibility:hidden;'></div>", unsafe_allow_html=True)
         else:
             with st.container():
-                st.color_picker(f"S{i}", "#222222", key=f"slot_box_empty_{i}", disabled=True, label_visibility="collapsed")
-                st.caption("<center><code style='color:gray;'>0x----</code></center>", unsafe_allow_html=True)
-                st.markdown("<br><br><br>", unsafe_allow_html=True)
+                # Centered empty placeholder brick
+                st.markdown("""
+                    <div style="display:flex; flex-direction:column; align-items:center; width:100%; text-align:center; margin-bottom:5px;">
+                        <div style="width:40px; height:44px; background-color:#222; border-radius:4px; border:2px dashed #44px; margin-bottom:4px;"></div>
+                        <code style="color:gray;">0x----</code>
+                    </div>
+                """, unsafe_allow_html=True)
+                st.markdown("<br>", unsafe_allow_html=True)
 
 
 if any(c is not None for c in st.session_state.custom_palette):
