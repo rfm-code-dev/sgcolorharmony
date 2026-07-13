@@ -65,7 +65,6 @@ vdp_b = st.sidebar.slider("Blue Channel (VDP)", min_value=0, max_value=7, value=
 base_genesis = (VDP_STEPS[vdp_r], VDP_STEPS[vdp_g], VDP_STEPS[vdp_b])
 base_hex = f"#{base_genesis[0]:02X}{base_genesis[1]:02X}{base_genesis[2]:02X}"
 
-# FIX: Dynamic key forces the preview color box to update instantly when sliders move
 st.sidebar.markdown("**Selected Base Preview:**")
 st.sidebar.color_picker("Hardware Base Color", base_hex, key=f"sb_preview_{base_hex.replace('#', '')}", disabled=True)
 
@@ -140,20 +139,34 @@ with col_wheel:
     
     fig, ax = plt.subplots(figsize=(4.5, 4.5), subplot_kw=dict(projection='polar'))
     
-    # RECALIBRATION: Expanded grid resolution
-    angles_bg = np.linspace(0, 2 * np.pi, 96, endpoint=False)
-    # Using square root distribution to cluster background dots evenly toward the edge
-    radii_bg = np.sqrt(np.linspace(0.04, 1.0, 10))
+    # NEW RENDERING ENGINE: Continuous mesh grid instead of individual scatter dots
+    # This solves spacing and removes individual dot size issues completely
+    num_angles = 120
+    num_radii = 40
     
-    for a in angles_bg:
-        for r_g in radii_bg:
-            r_res, g_res, b_res = colorsys.hsv_to_rgb(a / (2 * np.pi), r_g, max(0.2, dynamic_value))
+    angles_mesh = np.linspace(0, 2 * np.pi, num_angles)
+    radii_mesh = np.linspace(0.0, 1.0, num_radii)
+    
+    A, R = np.meshgrid(angles_mesh, radii_mesh)
+    
+    # Pre-calculate background colors locked to Genesis 9-bit space
+    mesh_colors = np.zeros((num_radii - 1, num_angles - 1, 3))
+    for i in range(num_radii - 1):
+        for j in range(num_angles - 1):
+            mid_a = (angles_mesh[j] + angles_mesh[j+1]) / 2.0
+            mid_r = (radii_mesh[i] + radii_mesh[i+1]) / 2.0
+            
+            # Map dynamic brightness from hardware value
+            r_res, g_res, b_res = colorsys.hsv_to_rgb(mid_a / (2 * np.pi), mid_r, max(0.15, dynamic_value))
             q_r, q_g, q_b = quantize_to_genesis((int(r_res * 255), int(g_res * 255), int(b_res * 255)))
             
-            # Uniform sizing across the whole grid now that geometric distribution matches density
-            ax.scatter(a, r_g, color=f"#{q_r:02X}{q_g:02X}{q_b:02X}", s=35, alpha=0.9, linewidths=0)
+            mesh_colors[i, j] = [q_r / 255.0, q_g / 255.0, q_b / 255.0]
             
-    # Overlay lines and harmony nodes
+    # Draw smooth uniform color canvas
+    mesh = ax.pcolormesh(angles_mesh, radii_mesh, np.zeros((num_radii-1, num_angles-1)), shading='flat')
+    mesh.set_facecolors(mesh_colors.reshape(-1, 3))
+            
+    # Overlay lines and harmony nodes safely
     for idx, color in enumerate(palette):
         r_int, g_int, b_int = int(color[0]), int(color[1]), int(color[2])
         
@@ -161,13 +174,17 @@ with col_wheel:
         h, s, v = colorsys.rgb_to_hsv(r_n, g_n, b_n)
         rad_angle = h * 2 * np.pi
         
-        ax.plot([0, rad_angle], [0, s], color="white", linestyle="--", alpha=0.8, linewidth=1.5)
+        # Safe bounds to prevent zero-division bugs on exact channel limits
+        s_plot = max(0.05, s)
+        
+        ax.plot([0, rad_angle], [0, s_plot], color="white", linestyle="--", alpha=0.8, linewidth=1.5)
         node_border = "#000000" if v > 0.5 else "#FFFFFF"
         
+        # Clean static size independent of coordinate transformations
         ax.scatter(
-            rad_angle, s, 
+            rad_angle, s_plot, 
             color=f"#{r_int:02X}{g_int:02X}{b_int:02X}", 
-            edgecolor=node_border, s=180, zorder=10
+            edgecolor=node_border, s=160, zorder=10, linewidths=1.5
         )
         
     ax.set_yticklabels([])
