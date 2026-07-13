@@ -21,7 +21,7 @@ st.markdown("""
             pointer-events: auto !important;
         }
         
-        /* FIX 1: Force absolute horizontal centralization on ALL components inside layout columns */
+        /* Force absolute horizontal centralization on ALL components inside layout columns */
         div[data-testid="column"] {
             display: flex !important;
             flex-direction: column !important;
@@ -31,22 +31,7 @@ st.markdown("""
             width: 100% !important;
         }
         
-        /* FIX 2: Force color pickers AND their parent wrappers to be cravated in the absolute horizontal center */
-        div[data-testid="stColorPicker"], 
-        div[data-testid="stColorPickerBlock"],
-        .stColorPicker,
-        div[data-testid="stColorPicker"] > div {
-            display: flex !important;
-            justify-content: center !important;
-            align-items: center !important;
-            margin: 0 auto !important;
-            text-align: center !important;
-        }
-        div[data-testid="stColorPicker"] > div {
-            width: 44px !important; /* Locks native square blueprint sizing */
-        }
-        
-        /* FIX 3: Force 'Add' and wrapper button divs to align to the absolute center of their grids */
+        /* Force 'Add' and wrapper button divs to align to the absolute center of their grids */
         div.stButton, div[data-testid="stHorizontalBlock"] div.stButton, .stButton {
             display: flex !important;
             justify-content: center !important;
@@ -55,7 +40,7 @@ st.markdown("""
             width: 100% !important;
         }
         
-        /* FIX 4: Reset markdown and caption elements to align text natively in the center */
+        /* Reset markdown and caption elements to align text natively in the center */
         div[data-testid="stMarkdown"], div[data-testid="stCaptionBlock"], p, center, b, code {
             display: block !important;
             text-align: center !important;
@@ -308,30 +293,31 @@ with col_values:
                 hex_color = f"#{r_c:02X}{g_c:02X}{b_c:02X}"
                 label_title = f"⭐ Base" if color == base_genesis and i == 2 else f"Color {i+1}"
                 
-                # Custom HTML layout centers bricks seamlessly without right-shifting
+                # ULTIMATE SYMMETRY FIX: Injected an explicit text center wrapper into a unified single HTML block.
+                # This guarantees that the Title, Color Brick, SGDK code, and RGB tuples are locked on the same vertical center line.
                 st.markdown(f"""
                     <div style="display:flex; flex-direction:column; align-items:center; width:100%; text-align:center;">
                         <div style="font-weight:bold; font-size:14px; margin-bottom:5px;">{label_title}</div>
                         <div style="width:44px; height:44px; background-color:{hex_color}; border-radius:4px; border:2px solid #555; box-shadow:0px 2px 4px rgba(0,0,0,0.25); margin-bottom:6px;"></div>
                         <div style="margin-bottom:2px;"><code>{rgb_to_sgdk_hex(color)}</code></div>
-                        <div style="color:gray; font-size:11px; margin-bottom:6px;">({r_c},{g_c},{b_c})</div>
+                        <div style="color:gray; font-size:11px; margin-bottom:8px;">({r_c},{g_c},{b_c})</div>
                     </div>
                 """, unsafe_allow_html=True)
                 
-                # FIX: Injected a dedicated native HTML centered div wrapper to lock the st.button location strictly to the middle
-                st.markdown("<div style='display:flex; justify-content:center; width:100%;'>", unsafe_allow_html=True)
-                if st.button("➕ Add", key=f"add_btn_{i}_{hex_color.replace('#', '')}"):
-                    inserted = False
-                    for s_idx in range(16):
-                        if st.session_state.custom_palette[s_idx] is None:
-                            st.session_state.custom_palette[s_idx] = color
-                            inserted = True
-                            break
-                    if inserted:
-                        st.rerun()
-                    else:
-                        st.sidebar.error("All 16 slots are full!")
-                st.markdown("</div>", unsafe_allow_html=True)
+                # Native Streamlit columns layout centering the st.button physically inside the column footprint
+                col_btn_l, col_btn_mid, col_btn_r = st.columns([1, 4, 1])
+                with col_btn_mid:
+                    if st.button("➕ Add", key=f"add_btn_{i}_{hex_color.replace('#', '')}"):
+                        inserted = False
+                        for s_idx in range(16):
+                            if st.session_state.custom_palette[s_idx] is None:
+                                st.session_state.custom_palette[s_idx] = color
+                                inserted = True
+                                break
+                        if inserted:
+                            st.rerun()
+                        else:
+                            st.sidebar.error("All 16 slots are full!")
 
     st.markdown("<div style='height:15px;'></div>", unsafe_allow_html=True)
     if not any(c is not None for c in st.session_state.custom_palette):
@@ -357,6 +343,7 @@ for i in range(16):
                 r_sl, g_sl, b_sl = int(slot_data[0]), int(slot_data[1]), int(slot_data[2])
                 slot_hex = f"#{r_sl:02X}{g_sl:02X}{b_sl:02X}"
                 
+                # Centered native HTML layout for the color slot bricks
                 st.markdown(f"""
                     <div style="display:flex; flex-direction:column; align-items:center; width:100%; text-align:center; margin-bottom:5px;">
                         <div style="width:40px; height:44px; background-color:{slot_hex}; border-radius:4px; border:2px solid #555; box-shadow:0px 2px 4px rgba(0,0,0,0.2); margin-bottom:4px;"></div>
