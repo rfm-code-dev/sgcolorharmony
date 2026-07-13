@@ -59,8 +59,9 @@ def calculate_harmonies(base_rgb, angle, sat_mod=1.0, val_mod=1.0):
     r_res, g_res, b_res = colorsys.hsv_to_rgb(h_new, s_new, v_new)
     return quantize_to_genesis((int(r_res * 255), int(g_res * 255), int(b_res * 255)))
 
-# --- INITIALIZE PALETTE ARRAY SLOTS AS FIXED 16 ELEMENT LIST ---
-if "custom_palette" not in st.session_state:
+# --- CRITICAL FIX: BLINDED MEMORY SESSION STATE FOR INDEX SAFETY ---
+# This ensures that old data lists from previous builds are overwritten into a clean 16-slot list
+if "custom_palette" not in st.session_state or len(st.session_state.custom_palette) != 16:
     st.session_state.custom_palette = [None] * 16
 
 # --- SIDEBAR CONFIGURATION ---
@@ -79,13 +80,13 @@ vdp_g = st.sidebar.slider("Green Channel (VDP)", min_value=0, max_value=7, value
 vdp_b = st.sidebar.slider("Blue Channel (VDP)", min_value=0, max_value=7, value=4)
 
 base_genesis = (VDP_STEPS[vdp_r], VDP_STEPS[vdp_g], VDP_STEPS[vdp_b])
-base_hex = f"#{base_genesis[0]:02X}{base_genesis[1]:02X}{base_genesis[2]:02X}"
+base_hex = f"#{base_genesis:02X}{base_genesis:02X}{base_genesis:02X}"
 
 st.sidebar.markdown("**Selected Base Preview:**")
 st.sidebar.color_picker("Hardware Base Color", base_hex, key=f"sb_preview_{base_hex.replace('#', '')}")
 
 # Extract active hardware brightness
-r_norm, g_norm, b_norm = base_genesis[0]/255.0, base_genesis[1]/255.0, base_genesis[2]/255.0
+r_norm, g_norm, b_norm = base_genesis/255.0, base_genesis/255.0, base_genesis/255.0
 _, _, dynamic_value = colorsys.rgb_to_hsv(r_norm, g_norm, b_norm)
 
 # --- HARMONY RULE LOGIC ---
@@ -154,7 +155,6 @@ with col_wheel:
     st.write("### VDP 9-bit Color Wheel")
     fig, ax = plt.subplots(figsize=(3.2, 3.2), subplot_kw=dict(projection='polar'))
     
-    # FIXED: Scale constraints locked down completely to disable dynamic resizing bugs
     ax.set_autoscale_on(False)
     ax.set_rmax(1.0)
     
@@ -168,7 +168,7 @@ with col_wheel:
             ax.scatter(a, r_g, color=f"#{q_r:02X}{q_g:02X}{q_b:02X}", s=15, alpha=0.9, linewidths=0, zorder=1)
             
     for idx, color in enumerate(palette):
-        r_v, g_v, b_v = int(color[0]), int(color[1]), int(color[2])
+        r_v, g_v, b_v = int(color), int(color), int(color)
         r_n, g_n, b_n = r_v / 255.0, g_v / 255.0, b_v / 255.0
         h, s, v = colorsys.rgb_to_hsv(r_n, g_n, b_n)
         rad_angle = h * 2 * np.pi
@@ -196,7 +196,7 @@ with col_values:
     
     for i, color in enumerate(palette):
         with cols_palette[i]:
-            hex_color = f"#{color[0]:02X}{color[1]:02X}{color[2]:02X}"
+            hex_color = f"#{color:02X}{color:02X}{color:02X}"
             label_title = f"⭐ Base Color" if color == base_genesis and i == 2 else f"Color {i+1}"
             
             st.color_picker(label_title, hex_color, key=f"vdp_node_{i}_{hex_color.replace('#', '')}")
@@ -204,7 +204,6 @@ with col_values:
             st.caption(f"RGB: {color}")
             
             if st.button("➕ Add", key=f"add_btn_{i}_{hex_color.replace('#', '')}"):
-                # Find the first empty slot to automatically insert the color
                 inserted = False
                 for s_idx in range(16):
                     if st.session_state.custom_palette[s_idx] is None:
@@ -220,9 +219,8 @@ with col_values:
 st.markdown("---")
 st.write("### 🎛️ Active 16-Color Hardware Palette Builder")
 
-# Calculate accurate slots filled count filtering out None placeholders
 active_colors = [c for c in st.session_state.custom_palette if c is not None]
-st.caption(f"Slots filled: {len(active_colors)} / 16. (Move elements using the index slider or clear individual slots using the X button).")
+st.caption(f"Slots filled: {len(active_colors)} / 16. (Use ◀ / ▶ arrows to organize index slots or ❌ to clear a single position).")
 
 cols_16 = st.columns(16)
 for i in range(16):
@@ -231,40 +229,46 @@ for i in range(16):
         slot_data = st.session_state.custom_palette[i]
         
         if slot_data is not None:
-            slot_hex = f"#{slot_data[0]:02X}{slot_data[1]:02X}{slot_data[2]:02X}"
+            slot_hex = f"#{slot_data:02X}{slot_data:02X}{slot_data:02X}"
             st.color_picker(f"S{i}", slot_hex, key=f"slot_box_{i}_{slot_hex.replace('#','')}", label_visibility="collapsed")
             st.caption(f"<center><code>{rgb_to_sgdk_hex(slot_data)}</code></center>", unsafe_allow_html=True)
             
-            # 1. Sliders to swap colors between quadrants
-            move_target = st.slider("Move", min_value=0, max_value=15, value=i, key=f"move_slider_{i}", label_visibility="collapsed")
-            if move_target != i:
-                # Swap the colors between indices in the array matrix memory
-                temp = st.session_state.custom_palette[move_target]
-                st.session_state.custom_palette[move_target] = st.session_state.custom_palette[i]
-                st.session_state.custom_palette[i] = temp
-                st.rerun()
-                
-            # 2. X Button to clear an individual slot safely
-            if st.button("❌", key=f"clear_slot_btn_{i}", help="Clear color from this slot"):
-                st.session_state.custom_palette[i] = None
-                st.rerun()
+            # REORDER FUNCTION: Compact sleek layout navigation arrows (Saves layout vertical grid padding)
+            move_left, clear_cell, move_right = st.columns([1, 1, 1])
+            
+            with move_left:
+                if i > 0:
+                    if st.button("◀", key=f"mv_l_{i}", help="Shift left"):
+                        st.session_state.custom_palette[i-1], st.session_state.custom_palette[i] = st.session_state.custom_palette[i], st.session_state.custom_palette[i-1]
+                        st.rerun()
+            
+            with clear_cell:
+                # CIRURGIC CLEAR: Single slot X delete button request fulfilled
+                if st.button("❌", key=f"clear_slot_btn_{i}", help="Delete color from this slot"):
+                    st.session_state.custom_palette[i] = None
+                    st.rerun()
+                    
+            with move_right:
+                if i < 15:
+                    if st.button("▶", key=f"mv_r_{i}", help="Shift right"):
+                        st.session_state.custom_palette[i+1], st.session_state.custom_palette[i] = st.session_state.custom_palette[i], st.session_state.custom_palette[i+1]
+                        st.rerun()
         else:
             st.color_picker(f"S{i}", "#222222", key=f"slot_box_empty_{i}", disabled=True, label_visibility="collapsed")
             st.caption("<center><code style='color:gray;'>0x----</code></center>", unsafe_allow_html=True)
-            st.markdown("<br><br>", unsafe_allow_html=True)  # Keeps whitespace aligned nicely with sliders
+            st.markdown("<br><br>", unsafe_allow_html=True)  # Uniform spacing padding
 
 if any(c is not None for c in st.session_state.custom_palette):
-    if st.button("❌ Clear Full Palette", type="secondary"):
+    st.markdown("<br>", unsafe_allow_html=True)
+    if st.button("❌ Clear Full Palette Work-area", type="secondary"):
         st.session_state.custom_palette = [None] * 16
         st.rerun()
 
 # --- CODE EXPORT BLOCK ---
-exportable_palette = [c for c in st.session_state.custom_palette if c is not None]
-
-if exportable_palette:
+if exportable_palette := [c for c in st.session_state.custom_palette if c is not None]:
     st.markdown("---")
     st.write("### 💻 Export Code for Your Project Palette")
-    st.caption("This code updates dynamically containing only the active valid colors from your 16 slots.")
+    st.caption("This code updates dynamically based only on the valid active colors across your slots.")
     
     tab_sgdk, tab_asm, tab_raw = st.tabs(["SGDK (C Array)", "Assembly (68k)", "Decimal Values"])
     
@@ -279,7 +283,7 @@ if exportable_palette:
         st.code(asm_code, language="asm")
         
     with tab_raw:
-        st.text("Raw RGB Tuple List:")
+        st.text("Raw RGB Tuple List Layout:")
         for idx, c in enumerate(st.session_state.custom_palette):
             if c is not None:
                 st.text(f"Slot {idx}: {c}")
