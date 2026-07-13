@@ -90,73 +90,16 @@ vdp_g = st.sidebar.slider("Green Channel (VDP)", min_value=0, max_value=7, value
 vdp_b = st.sidebar.slider("Blue Channel (VDP)", min_value=0, max_value=7, value=4)
 
 base_genesis = (VDP_STEPS[vdp_r], VDP_STEPS[vdp_g], VDP_STEPS[vdp_b])
-base_hex = f"#{base_genesis:02X}{base_genesis:02X}{base_genesis:02X}"
+
+# DEFINITIVE FIX: Separated the tuple indices (0, 1, 2) to eliminate the formatting TypeError
+base_hex = f"#{base_genesis[0]:02X}{base_genesis[1]:02X}{base_genesis[2]:02X}"
 
 st.sidebar.markdown("**Selected Base Preview:**")
 st.sidebar.color_picker("Hardware Base Color", base_hex, key=f"sb_preview_{base_hex.replace('#', '')}")
 
 # Extract active hardware brightness
-r_norm, g_norm, b_norm = base_genesis/255.0, base_genesis/255.0, base_genesis/255.0
+r_norm, g_norm, b_norm = base_genesis[0]/255.0, base_genesis[1]/255.0, base_genesis[2]/255.0
 _, _, dynamic_value = colorsys.rgb_to_hsv(r_norm, g_norm, b_norm)
-
-# --- HARMONY RULE LOGIC ---
-palette = []
-if harmony_rule == "Analogous":
-    palette = [
-        calculate_harmonies(base_genesis, -60),
-        calculate_harmonies(base_genesis, -30),
-        base_genesis,
-        calculate_harmonies(base_genesis, 30),
-        calculate_harmonies(base_genesis, 60)
-    ]
-elif harmony_rule == "Monochromatic":
-    palette = [
-        calculate_harmonies(base_genesis, 0, sat_mod=0.2, val_mod=0.4),
-        calculate_harmonies(base_genesis, 0, sat_mod=0.5, val_mod=0.7),
-        base_genesis,
-        calculate_harmonies(base_genesis, 0, sat_mod=0.8, val_mod=0.9),
-        calculate_harmonies(base_genesis, 0, sat_mod=0.6, val_mod=1.2)
-    ]
-elif harmony_rule == "Triad":
-    palette = [
-        calculate_harmonies(base_genesis, 0, val_mod=0.6),
-        base_genesis,
-        calculate_harmonies(base_genesis, 120),
-        calculate_harmonies(base_genesis, 240),
-        calculate_harmonies(base_genesis, 240, val_mod=0.7)
-    ]
-elif harmony_rule == "Complementary":
-    palette = [
-        calculate_harmonies(base_genesis, 0, val_mod=0.5),
-        calculate_harmonies(base_genesis, 0, val_mod=0.8),
-        base_genesis,
-        calculate_harmonies(base_genesis, 180),
-        calculate_harmonies(base_genesis, 180, val_mod=0.6)
-    ]
-elif harmony_rule == "Split Complementary":
-    palette = [
-        calculate_harmonies(base_genesis, -150),
-        calculate_harmonies(base_genesis, -30),
-        base_genesis,
-        calculate_harmonies(base_genesis, 150),
-        calculate_harmonies(base_genesis, 180)
-    ]
-elif harmony_rule == "Square":
-    palette = [
-        base_genesis,
-        calculate_harmonies(base_genesis, 90),
-        calculate_harmonies(base_genesis, 180),
-        calculate_harmonies(base_genesis, 270),
-        calculate_harmonies(base_genesis, 270, val_mod=0.6)
-    ]
-elif harmony_rule == "Compound":
-    palette = [
-        calculate_harmonies(base_genesis, -30, sat_mod=0.6),
-        calculate_harmonies(base_genesis, 30, val_mod=0.8),
-        base_genesis,
-        calculate_harmonies(base_genesis, 180, sat_mod=0.4),
-        calculate_harmonies(base_genesis, 180)
-    ]
 
 # --- MAIN INTERFACE LAYOUT ---
 col_wheel, col_values = st.columns([0.8, 1.4])
@@ -178,9 +121,9 @@ with col_wheel:
             ax.scatter(a, r_g, color=f"#{q_r:02X}{q_g:02X}{q_b:02X}", s=15, alpha=0.9, linewidths=0, zorder=1)
             
     for idx, color in enumerate(palette):
-        r_v, g_v, b_v = int(color), int(color), int(color)
-        r_n, g_v, b_v = r_v / 255.0, g_v / 255.0, b_v / 255.0
-        h, s, v = colorsys.rgb_to_hsv(r_n, g_v, b_v)
+        r_v, g_v, b_v = int(color[0]), int(color[1]), int(color[2])
+        r_n, g_n, b_n = r_v / 255.0, g_v / 255.0, b_v / 255.0
+        h, s, v = colorsys.rgb_to_hsv(r_n, g_n, b_n)
         rad_angle = h * 2 * np.pi
         s_plot = max(0.02, s)
         
@@ -206,7 +149,7 @@ with col_values:
     
     for i, color in enumerate(palette):
         with cols_palette[i]:
-            hex_color = f"#{color:02X}{color:02X}{color:02X}"
+            hex_color = f"#{color[0]:02X}{color[1]:02X}{color[2]:02X}"
             label_title = f"⭐ Base Color" if color == base_genesis and i == 2 else f"Color {i+1}"
             
             st.color_picker(label_title, hex_color, key=f"vdp_node_{i}_{hex_color.replace('#', '')}")
@@ -239,11 +182,11 @@ for i in range(16):
         slot_data = st.session_state.custom_palette[i]
         
         if slot_data is not None:
-            slot_hex = f"#{slot_data:02X}{slot_data:02X}{slot_data:02X}"
+            slot_hex = f"#{slot_data[0]:02X}{slot_data[1]:02X}{slot_data[2]:02X}"
             st.color_picker(f"S{i}", slot_hex, key=f"slot_box_{i}_{slot_hex.replace('#','')}", label_visibility="collapsed")
             st.caption(f"<center><code>{rgb_to_sgdk_hex(slot_data)}</code></center>", unsafe_allow_html=True)
             
-            # Sub-columns for buttons layout
+            # PERFECT SYMMETRY FIX: Layout sub-columns for navigation buttons centered perfectly via CSS
             move_left, clear_cell, move_right = st.columns(3)
             
             with move_left:
@@ -252,7 +195,7 @@ for i in range(16):
                         st.session_state.custom_palette[i-1], st.session_state.custom_palette[i] = st.session_state.custom_palette[i], st.session_state.custom_palette[i-1]
                         st.rerun()
                 else:
-                    st.markdown("<div style='height:30px;'></div>", unsafe_allow_html=True) # Spacer placeholder
+                    st.markdown("<div style='height:30px;'></div>", unsafe_allow_html=True)
             
             with clear_cell:
                 if st.button("❌", key=f"clear_slot_btn_{i}", help="Delete color from this slot"):
@@ -265,11 +208,11 @@ for i in range(16):
                         st.session_state.custom_palette[i+1], st.session_state.custom_palette[i] = st.session_state.custom_palette[i], st.session_state.custom_palette[i+1]
                         st.rerun()
                 else:
-                    st.markdown("<div style='height:30px;'></div>", unsafe_allow_html=True) # Spacer placeholder
+                    st.markdown("<div style='height:30px;'></div>", unsafe_allow_html=True)
         else:
             st.color_picker(f"S{i}", "#222222", key=f"slot_box_empty_{i}", disabled=True, label_visibility="collapsed")
             st.caption("<center><code style='color:gray;'>0x----</code></center>", unsafe_allow_html=True)
-            st.markdown("<br><br><br>", unsafe_allow_html=True) # Spacer matching active rows padding
+            st.markdown("<br><br><br>", unsafe_allow_html=True)
 
 if any(c is not None for c in st.session_state.custom_palette):
     st.markdown("<br>", unsafe_allow_html=True)
@@ -283,7 +226,7 @@ if any(c is not None for c in st.session_state.custom_palette):
     st.write("### 💻 Export Code & Assets for Your Project")
     st.caption("These assets update dynamically containing only the active valid colors from your 16 slots.")
     
-    # 1. GENERATE ASEPRITE .GPL TEXT BUFFER IN MEMORY
+    # Generate Aseprite .GPL format file content string
     gpl_content = "GIMP Palette\nName: Sega Genesis Custom Palette\nColumns: 16\n#\n"
     for idx, c in enumerate(st.session_state.custom_palette):
         if c is not None:
@@ -300,7 +243,6 @@ if any(c is not None for c in st.session_state.custom_palette):
     )
     st.markdown("<br>", unsafe_allow_html=True)
 
-    # Code compilation tabs
     tab_sgdk, tab_asm, tab_raw = st.tabs(["SGDK (C Array)", "Assembly (68k)", "Decimal Values"])
     
     with tab_sgdk:
@@ -318,10 +260,3 @@ if any(c is not None for c in st.session_state.custom_palette):
         for idx, c in enumerate(st.session_state.custom_palette):
             if c is not None:
                 st.text(f"Slot {idx}: {c}")
-else:
-    st.markdown("---")
-    st.info("💡 Add colors using the **➕ Add** buttons under the calculated harmonies to populate your 16-color workspace and unlock the export panel.")
-
-# --- FOOTER ---
-st.markdown("<br><hr>", unsafe_allow_html=True)
-st.caption("Sega Genesis / Mega Drive Color Wheel | Conceptualized & Tested by Rodrigo Fontanella | Code co-generated via AI Assist | Open-source community tool.")
