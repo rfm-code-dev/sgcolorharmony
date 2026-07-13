@@ -12,7 +12,16 @@ st.markdown("Create and calculate color harmonies locked strictly to the **512 c
 # --- INJECT CUSTOM CSS FOR PERFECT GLOBAL ALIGNMENT AND SYMMETRY ---
 st.markdown("""
     <style>
-        /* Force absolute horizontal centralization on ALL components inside layout columns */
+        /* Disable mouse selection events on disabled/preview color picks */
+        div[data-testid="stColorPicker"] {
+            pointer-events: none !important;
+            cursor: default !important;
+        }
+        section[data-testid="stSidebar"] div[data-testid="stColorPicker"] {
+            pointer-events: auto !important;
+        }
+        
+        /* FIX 1: Force absolute horizontal centralization on ALL components inside layout columns */
         div[data-testid="column"] {
             display: flex !important;
             flex-direction: column !important;
@@ -22,8 +31,23 @@ st.markdown("""
             width: 100% !important;
         }
         
-        /* Force 'Add' and wrapper button divs to align to the absolute center of their grids */
-        div.stButton, div[data-testid="stHorizontalBlock"] div.stButton {
+        /* FIX 2: Force color pickers AND their parent wrappers to be cravated in the absolute horizontal center */
+        div[data-testid="stColorPicker"], 
+        div[data-testid="stColorPickerBlock"],
+        .stColorPicker,
+        div[data-testid="stColorPicker"] > div {
+            display: flex !important;
+            justify-content: center !important;
+            align-items: center !important;
+            margin: 0 auto !important;
+            text-align: center !important;
+        }
+        div[data-testid="stColorPicker"] > div {
+            width: 44px !important; /* Locks native square blueprint sizing */
+        }
+        
+        /* FIX 3: Force 'Add' and wrapper button divs to align to the absolute center of their grids */
+        div.stButton, div[data-testid="stHorizontalBlock"] div.stButton, .stButton {
             display: flex !important;
             justify-content: center !important;
             align-items: center !important;
@@ -31,7 +55,7 @@ st.markdown("""
             width: 100% !important;
         }
         
-        /* Reset markdown and caption elements to align text natively in the center */
+        /* FIX 4: Reset markdown and caption elements to align text natively in the center */
         div[data-testid="stMarkdown"], div[data-testid="stCaptionBlock"], p, center, b, code {
             display: block !important;
             text-align: center !important;
@@ -127,7 +151,6 @@ b_hex_val = int(base_genesis[2])
 base_hex = f"#{r_hex_val:02X}{g_hex_val:02X}{b_hex_val:02X}"
 
 st.sidebar.markdown("**Selected Base Preview:**")
-# Envelopando o preview da barra lateral em HTML puro para mantê-lo centralizado e sem rollover bugado
 st.sidebar.markdown(f"""
     <div style="display:flex; justify-content:center; align-items:center; width:100%; margin: 5px 0;">
         <div style="width:50px; height:30px; background-color:{base_hex}; border-radius:4px; border:2px solid #555; box-shadow:0px 2px 4px rgba(0,0,0,0.3);"></div>
@@ -285,7 +308,7 @@ with col_values:
                 hex_color = f"#{r_c:02X}{g_c:02X}{b_c:02X}"
                 label_title = f"⭐ Base" if color == base_genesis and i == 2 else f"Color {i+1}"
                 
-                # REVOLUTIONARY IMPLEMENTATION: Replaced st.color_picker with 100% perfectly centered custom HTML bricks
+                # Custom HTML layout centers bricks seamlessly without right-shifting
                 st.markdown(f"""
                     <div style="display:flex; flex-direction:column; align-items:center; width:100%; text-align:center;">
                         <div style="font-weight:bold; font-size:14px; margin-bottom:5px;">{label_title}</div>
@@ -295,6 +318,8 @@ with col_values:
                     </div>
                 """, unsafe_allow_html=True)
                 
+                # FIX: Injected a dedicated native HTML centered div wrapper to lock the st.button location strictly to the middle
+                st.markdown("<div style='display:flex; justify-content:center; width:100%;'>", unsafe_allow_html=True)
                 if st.button("➕ Add", key=f"add_btn_{i}_{hex_color.replace('#', '')}"):
                     inserted = False
                     for s_idx in range(16):
@@ -306,6 +331,7 @@ with col_values:
                         st.rerun()
                     else:
                         st.sidebar.error("All 16 slots are full!")
+                st.markdown("</div>", unsafe_allow_html=True)
 
     st.markdown("<div style='height:15px;'></div>", unsafe_allow_html=True)
     if not any(c is not None for c in st.session_state.custom_palette):
@@ -331,7 +357,6 @@ for i in range(16):
                 r_sl, g_sl, b_sl = int(slot_data[0]), int(slot_data[1]), int(slot_data[2])
                 slot_hex = f"#{r_sl:02X}{g_sl:02X}{b_sl:02X}"
                 
-                # REVOLUTIONARY IMPLEMENTATION: Native HTML brick layout centers seamlessly without right-shifting
                 st.markdown(f"""
                     <div style="display:flex; flex-direction:column; align-items:center; width:100%; text-align:center; margin-bottom:5px;">
                         <div style="width:40px; height:44px; background-color:{slot_hex}; border-radius:4px; border:2px solid #555; box-shadow:0px 2px 4px rgba(0,0,0,0.2); margin-bottom:4px;"></div>
@@ -363,14 +388,13 @@ for i in range(16):
                         st.markdown("<div style='height:28px; width:100%; visibility:hidden;'></div>", unsafe_allow_html=True)
         else:
             with st.container():
-                # Centered empty placeholder brick
                 st.markdown("""
                     <div style="display:flex; flex-direction:column; align-items:center; width:100%; text-align:center; margin-bottom:5px;">
                         <div style="width:40px; height:44px; background-color:#222; border-radius:4px; border:2px dashed #44px; margin-bottom:4px;"></div>
                         <code style="color:gray;">0x----</code>
                     </div>
                 """, unsafe_allow_html=True)
-                st.markdown("<br>", unsafe_allow_html=True)
+                st.markdown("<br><br><br>", unsafe_allow_html=True)
 
 
 if any(c is not None for c in st.session_state.custom_palette):
