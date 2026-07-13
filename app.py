@@ -21,13 +21,21 @@ st.markdown("""
             pointer-events: auto !important;
         }
         
-        /* FIX 1: Center the color picker boxes globally inside the 16 slots to align with codes and buttons */
+        /* FIX: Center the actual color picker wrapper container inside the column */
+        div[data-testid="column"] div[data-testid="stColorPicker"] {
+            display: flex !important;
+            justify-content: center !important;
+            align-items: center !important;
+            width: 100% !important;
+            margin: 0 auto !important;
+            text-align: center !important;
+        }
         div[data-testid="stColorPicker"] > div {
             margin: 0 auto !important;
             width: 44px !important;
         }
         
-        /* FIX 2: Center the labels/text titles of the slots */
+        /* Center the labels/text titles of the slots */
         div[data-testid="column"] center, div[data-testid="column"] b {
             display: block !important;
             text-align: center !important;
@@ -306,7 +314,7 @@ for i in range(16):
             r_sl, g_sl, b_sl = int(slot_data[0]), int(slot_data[1]), int(slot_data[2])
             slot_hex = f"#{r_sl:02X}{g_sl:02X}{b_sl:02X}"
             st.color_picker(f"S{i}", slot_hex, key=f"slot_box_{i}_{slot_hex.replace('#','')}", label_visibility="collapsed")
-            st.caption(f"<center><code>{rgb_to_sgdk_hex(slot_data)}</code></center>", unsafe_allow_html=True)
+            st.markdown(f"<center><code>{rgb_to_sgdk_hex(slot_data)}</code></center>", unsafe_allow_html=True)
             
             move_left, clear_cell, move_right = st.columns(3)
             
@@ -380,10 +388,3 @@ if any(c is not None for c in st.session_state.custom_palette):
         for idx, c in enumerate(st.session_state.custom_palette):
             if c is not None:
                 st.text(f"Slot {idx}: {c}")
-else:
-    st.markdown("---")
-    st.info("💡 Add colors using the **➕ Add** buttons under the calculated harmonies to populate your 16-color workspace and unlock the export panel.")
-
-# --- FOOTER ---
-st.markdown("<br><hr>", unsafe_allow_html=True)
-st.caption("Sega Genesis / Mega Drive Color Wheel | Conceptualized & Tested by Rodrigo Fontanella | Code co-generated via AI Assist | Open-source community tool.")
