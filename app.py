@@ -30,17 +30,17 @@ st.markdown("""
             justify-content: flex-start !important;
         }
         
-        /* FIX 2: Ensure color picker blocks are centered and don't stretch left */
+        /* FIX 2: Ensure color picker blocks maintain 100% width but center their internal color square */
         div[data-testid="stColorPicker"], div[data-testid="stColorPickerBlock"] {
             display: flex !important;
             justify-content: center !important;
             align-items: center !important;
             margin: 0 auto !important;
-            width: auto !important;
+            width: 100% !important;
         }
         div[data-testid="stColorPicker"] > div {
             margin: 0 auto !important;
-            width: 44px !important;
+            width: 44px !important; /* Forces the box to keep its perfect native square size */
         }
         
         /* FIX 3: Reset markdown and caption elements to align text natively in the center */
@@ -293,7 +293,6 @@ with col_values:
             
             st.color_picker(label_title, hex_color, key=f"vdp_node_{i}_{hex_color.replace('#', '')}")
             
-            # FIX 3: HTML tags centered globally wrapper to keep SGDK and RGB rows strictly aligned
             st.markdown(f"<div style='text-align: center; width:100%;'><b>SGDK:</b> <code>{rgb_to_sgdk_hex(color)}</code></div>", unsafe_allow_html=True)
             st.markdown(f"<div style='text-align: center; width:100%; color:gray; font-size:12px;'>RGB: ({r_c}, {g_c}, {b_c})</div>", unsafe_allow_html=True)
             
@@ -355,6 +354,7 @@ for i in range(16):
             st.caption("<center><code style='color:gray;'>0x----</code></center>", unsafe_allow_html=True)
             st.markdown("<br><br><br>", unsafe_allow_html=True)
 
+
 if any(c is not None for c in st.session_state.custom_palette):
     st.markdown("<br>", unsafe_allow_html=True)
     if st.button("❌ Clear Full Palette Work-area", type="secondary"):
@@ -400,3 +400,10 @@ if any(c is not None for c in st.session_state.custom_palette):
         for idx, c in enumerate(st.session_state.custom_palette):
             if c is not None:
                 st.text(f"Slot {idx}: ({c[0]}, {c[1]}, {c[2]})")
+else:
+    st.markdown("---")
+    st.info("💡 Add colors using the **➕ Add** buttons under the calculated harmonies to populate your 16-color workspace and unlock the export panel.")
+
+# --- FOOTER ---
+st.markdown("<br><hr>", unsafe_allow_html=True)
+st.caption("Sega Genesis / Mega Drive Color Wheel | Conceptualized & Tested by Rodrigo Fontanella | Code co-generated via AI Assist | Open-source community tool.")
