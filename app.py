@@ -31,11 +31,21 @@ def quantize_to_genesis(rgb):
 
 def rgb_to_sgdk_hex(rgb):
     """Converts RGB to native SGDK C format (0x0BGR) using 3 nibbles."""
-    return f"0x{VDP_STEPS.index(rgb[2])*2:01X}{VDP_STEPS.index(rgb[1])*2:01X}{VDP_STEPS.index(rgb[0])*2:01X}0"
+    r, g, b = rgb
+    r_vdp = VDP_STEPS.index(r) * 2
+    g_vdp = VDP_STEPS.index(g) * 2
+    b_vdp = VDP_STEPS.index(b) * 2
+    vdp_value = (b_vdp << 8) | (g_vdp << 4) | r_vdp
+    return f"0x{vdp_value:04X}"
 
 def rgb_to_asm_hex(rgb):
     """Converts RGB to traditional Assembly 68k format ($0BGR)."""
-    return f"${VDP_STEPS.index(rgb[2])*2:01X}{VDP_STEPS.index(rgb[1])*2:01X}{VDP_STEPS.index(rgb[0])*2:01X}0"
+    r, g, b = rgb
+    r_vdp = VDP_STEPS.index(r) * 2
+    g_vdp = VDP_STEPS.index(g) * 2
+    b_vdp = VDP_STEPS.index(b) * 2
+    vdp_value = (b_vdp << 8) | (g_vdp << 4) | r_vdp
+    return f"${vdp_value:04X}"
 
 def calculate_harmonies(base_rgb, angle, sat_mod=1.0, val_mod=1.0):
     """Rotates the Hue in HSV space, applies modifiers, and quantizes back to 9-bit RGB."""
@@ -74,7 +84,7 @@ base_hex = f"#{base_genesis[0]:02X}{base_genesis[1]:02X}{base_genesis[2]:02X}"
 st.sidebar.markdown("**Selected Base Preview:**")
 st.sidebar.color_picker("Hardware Base Color", base_hex, key=f"sb_preview_{base_hex.replace('#', '')}")
 
-# Extract brightness context
+# Extract active hardware brightness/value context dynamically to drive matrix computation
 r_norm, g_norm, b_norm = base_genesis[0]/255.0, base_genesis[1]/255.0, base_genesis[2]/255.0
 _, _, dynamic_value = colorsys.rgb_to_hsv(r_norm, g_norm, b_norm)
 
@@ -142,26 +152,40 @@ col_wheel, col_values = st.columns([1, 1.2])
 
 with col_wheel:
     st.write("### VDP 9-bit Color Wheel")
-    fig, ax = plt.subplots(figsize=(4.5, 4.5), subplot_kw=dict(projection='polar'))
     
-    # 2D CONTOUR ENGINE: Native mesh grid mapping a clean 2D array of angles
-    num_angles = 120
-    num_radii = 30
+    # Requirement #1: Diminished figure window constraints size from 4.5 down to 3.2
+    fig, ax = plt.subplots(figsize=(3.2, 3.2), subplot_kw=dict(projection='polar'))
+    
+    # Requirement #2: Advanced Dynamic HSV Mapping Engine
+    num_angles = 90
+    num_radii = 20
     angles_grid = np.linspace(0, 2 * np.pi, num_angles)
     radii_grid = np.linspace(0.0, 1.0, num_radii)
     
-    A, R = np.meshgrid(angles_grid, radii_grid)
-    
-    # Passing raw angles directly to map a native continuous rainbow spectrum
-    # Dynamic value controls the shading contrast blend over the mesh canvas
-    ax.contourf(A, R, A, cmap='hsv', levels=100, alpha=max(0.2, dynamic_value), zorder=1)
+    # Render custom facecolors to simulate real HSB/HSV dynamic grading responses
+    mesh_rgba = np.zeros((num_radii - 1, num_angles - 1, 4))
+    for i in range(num_radii - 1):
+        for j in range(num_angles - 1):
+            mid_a = (angles_grid[j] + angles_grid[j+1]) / 2.0
+            mid_r = (radii_grid[i] + radii_grid[i+1]) / 2.0
+            
+            # Center of the wheel maps to white/pastel, edges map to full native saturation
+            # Overall intensity matches the hardware base value brightness selection
+            r_res, g_res, b_res = colorsys.hsv_to_rgb(mid_a / (2 * np.pi), mid_r, max(0.0, dynamic_value))
+            q_r, q_g, q_b = quantize_to_genesis((int(r_res * 255), int(g_res * 255), int(b_res * 255)))
+            mesh_rgba[i, j] = [q_r / 255.0, q_g / 255.0, q_b / 255.0, 1.0]
+            
+    mesh = ax.pcolormesh(angles_grid, radii_grid, np.zeros((num_radii-1, num_angles-1)), shading='flat', zorder=1)
+    mesh.set_facecolors(mesh_rgba.reshape(-1, 4))
             
     for idx, color in enumerate(palette):
         r_v, g_v, b_v = int(color[0]), int(color[1]), int(color[2])
         r_n, g_n, b_n = r_v / 255.0, g_v / 255.0, b_v / 255.0
         h, s, v = colorsys.rgb_to_hsv(r_n, g_n, b_n)
         rad_angle = h * 2 * np.pi
-        s_plot = max(0.08, s)
+        
+        # Position nodes precisely on the graph map based on calculated hardware saturation bounds
+        s_plot = max(0.02, s)
         
         ax.plot([0, rad_angle], [0, s_plot], color="white", linestyle="--", alpha=0.9, linewidth=1.5, zorder=5)
         node_border = "#000000" if v > 0.5 else "#FFFFFF"
@@ -169,7 +193,7 @@ with col_wheel:
         ax.scatter(
             rad_angle, s_plot, 
             color=f"#{r_v:02X}{g_v:02X}{b_v:02X}", 
-            edgecolor=node_border, s=160, zorder=10, linewidths=2.0
+            edgecolor=node_border, s=150, zorder=10, linewidths=2.0
         )
         
     ax.set_yticklabels([])
@@ -253,5 +277,3 @@ else:
 # --- FOOTER ---
 st.markdown("<br><hr>", unsafe_allow_html=True)
 st.caption("Sega Genesis / Mega Drive Color Wheel | Conceptualized & Tested by Rodrigo Fontanella | Code co-generated via AI Assist | Open-source community tool.")
-
-
