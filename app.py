@@ -10,15 +10,12 @@ st.title("🎮 Sega Genesis / Mega Drive Color Wheel")
 st.markdown("Create and calculate color harmonies locked strictly to the **512 colors (9-bit VDP RGB)** of the original hardware.")
 
 # --- INJECT CUSTOM CSS TO REMOVE ROLLOVER AND CLICKS FROM PREVIEW BOXES ---
-# This keeps the blocks 100% bright but completely unclickable and without pointer changes.
 st.markdown("""
     <style>
-        /* Target color pickers that act as previews and disable mouse interactions */
         div[data-testid="stColorPicker"] {
             pointer-events: none !important;
             cursor: default !important;
         }
-        /* Keep sidebar picker active so the user can still use sliders or the sidebar preview if needed */
         section[data-testid="stSidebar"] div[data-testid="stColorPicker"] {
             pointer-events: auto !important;
         }
@@ -88,7 +85,7 @@ base_hex = f"#{base_genesis[0]:02X}{base_genesis[1]:02X}{base_genesis[2]:02X}"
 st.sidebar.markdown("**Selected Base Preview:**")
 st.sidebar.color_picker("Hardware Base Color", base_hex, key=f"sb_preview_{base_hex.replace('#', '')}")
 
-# Extract brightness context
+# Extract real-time brightness (Value) from the hardware sliders to drive the background matrix
 r_norm, g_norm, b_norm = base_genesis[0]/255.0, base_genesis[1]/255.0, base_genesis[2]/255.0
 _, _, dynamic_value = colorsys.rgb_to_hsv(r_norm, g_norm, b_norm)
 
@@ -158,15 +155,24 @@ with col_wheel:
     st.write("### VDP 9-bit Color Wheel")
     fig, ax = plt.subplots(figsize=(4.5, 4.5), subplot_kw=dict(projection='polar'))
     
-    num_angles = 180
-    num_radii = 50
-    angles_grid = np.linspace(0, 2 * np.pi, num_angles)
-    radii_grid = np.linspace(0.0, 1.0, num_radii)
-    A, R = np.meshgrid(angles_grid, radii_grid)
-    Z = A / (2 * np.pi)
+    # REVOLUTIONARY ENGINE: High-resolution exact pixel matrix mapping
+    size = 200
+    r_coords = np.linspace(0, 1, size)
+    theta_coords = np.linspace(0, 2 * np.pi, size)
     
-    ax.contourf(A, R, Z, cmap='hsv', levels=100, alpha=1.0, zorder=1)
+    # Generate background color array
+    wheel_pixels = np.zeros((size, size, 3))
+    for i, r_g in enumerate(r_coords):
+        for j, t in enumerate(theta_coords):
+            # Calculate exact HSV based on grid position and user dynamic value brightness
+            r_res, g_res, b_res = colorsys.hsv_to_rgb(t / (2 * np.pi), r_g, max(0.15, dynamic_value))
+            q_r, q_g, q_b = quantize_to_genesis((int(r_res * 255), int(g_res * 255), int(b_res * 255)))
+            wheel_pixels[i, j] = [q_r / 255.0, q_g / 255.0, q_b / 255.0]
             
+    # Render the pixel array as a smooth polar grid background image
+    ax.imshow(wheel_pixels, extent=[0, 2*np.pi, 0, 1], origin='lower', aspect='auto', zorder=1)
+            
+    # Overlay connection indicators and nodes over the synced matrix background
     for idx, color in enumerate(palette):
         r_v, g_v, b_v = int(color[0]), int(color[1]), int(color[2])
         r_n, g_n, b_n = r_v / 255.0, g_v / 255.0, b_v / 255.0
