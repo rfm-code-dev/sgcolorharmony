@@ -21,6 +21,19 @@ st.markdown("""
             pointer-events: auto !important;
         }
         
+        /* FIX 1: Center the color picker boxes globally inside the 16 slots to align with codes and buttons */
+        div[data-testid="stColorPicker"] > div {
+            margin: 0 auto !important;
+            width: 44px !important;
+        }
+        
+        /* FIX 2: Center the labels/text titles of the slots */
+        div[data-testid="column"] center, div[data-testid="column"] b {
+            display: block !important;
+            text-align: center !important;
+            width: 100% !important;
+        }
+        
         /* Center, block-stretch, and force uniform line height on all slot buttons */
         div[data-testid="stHorizontalBlock"] button {
             display: flex !important;
@@ -102,7 +115,6 @@ vdp_b = st.sidebar.slider("Blue Channel (VDP)", min_value=0, max_value=7, value=
 
 base_genesis = (VDP_STEPS[vdp_r], VDP_STEPS[vdp_g], VDP_STEPS[vdp_b])
 
-# DEFINITIVE CACHE FIX: Safely unpacking to dedicated clean integer variables before string formatting
 r_hex_val = int(base_genesis[0])
 g_hex_val = int(base_genesis[1])
 b_hex_val = int(base_genesis[2])
@@ -262,8 +274,8 @@ with col_values:
             label_title = f"⭐ Base Color" if color == base_genesis and i == 2 else f"Color {i+1}"
             
             st.color_picker(label_title, hex_color, key=f"vdp_node_{i}_{hex_color.replace('#', '')}")
-            st.markdown(f"**SGDK:** `{rgb_to_sgdk_hex(color)}`")
-            st.caption(f"RGB: {color}")
+            st.markdown(f"<center><b>SGDK:</b> <code>{rgb_to_sgdk_hex(color)}</code></center>", unsafe_allow_html=True)
+            st.caption(f"<center>RGB: {color}</center>", unsafe_allow_html=True)
             
             if st.button("➕ Add", key=f"add_btn_{i}_{hex_color.replace('#', '')}"):
                 inserted = False
