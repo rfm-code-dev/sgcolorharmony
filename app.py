@@ -85,7 +85,7 @@ base_hex = f"#{base_genesis[0]:02X}{base_genesis[1]:02X}{base_genesis[2]:02X}"
 st.sidebar.markdown("**Selected Base Preview:**")
 st.sidebar.color_picker("Hardware Base Color", base_hex, key=f"sb_preview_{base_hex.replace('#', '')}")
 
-# Extract real-time brightness (Value) from the hardware sliders to drive the background matrix
+# Extract brightness context
 r_norm, g_norm, b_norm = base_genesis[0]/255.0, base_genesis[1]/255.0, base_genesis[2]/255.0
 _, _, dynamic_value = colorsys.rgb_to_hsv(r_norm, g_norm, b_norm)
 
@@ -155,24 +155,32 @@ with col_wheel:
     st.write("### VDP 9-bit Color Wheel")
     fig, ax = plt.subplots(figsize=(4.5, 4.5), subplot_kw=dict(projection='polar'))
     
-    # REVOLUTIONARY ENGINE: High-resolution exact pixel matrix mapping
-    size = 200
-    r_coords = np.linspace(0, 1, size)
-    theta_coords = np.linspace(0, 2 * np.pi, size)
+    # RELIABLE POLAR MESH ENGINE: Native 2D polar mapping with dynamic RGB array conversion
+    num_angles = 90
+    num_radii = 25
+    angles_grid = np.linspace(0, 2 * np.pi, num_angles)
+    radii_grid = np.linspace(0.0, 1.0, num_radii)
     
-    # Generate background color array
-    wheel_pixels = np.zeros((size, size, 3))
-    for i, r_g in enumerate(r_coords):
-        for j, t in enumerate(theta_coords):
-            # Calculate exact HSV based on grid position and user dynamic value brightness
-            r_res, g_res, b_res = colorsys.hsv_to_rgb(t / (2 * np.pi), r_g, max(0.15, dynamic_value))
+    A, R = np.meshgrid(angles_grid, radii_grid)
+    
+    # Pre-render a flattened RGB 4D canvas mapping clamped to VDP steps to avoid shape type errors
+    mesh_rgba = np.zeros((num_radii - 1, num_angles - 1, 4))
+    for i in range(num_radii - 1):
+        for j in range(num_angles - 1):
+            mid_a = (angles_grid[j] + angles_grid[j+1]) / 2.0
+            mid_r = (radii_grid[i] + radii_grid[i+1]) / 2.0
+            
+            # Formulate coordinates directly with the dynamic hardware brightness value
+            r_res, g_res, b_res = colorsys.hsv_to_rgb(mid_a / (2 * np.pi), mid_r, max(0.15, dynamic_value))
             q_r, q_g, q_b = quantize_to_genesis((int(r_res * 255), int(g_res * 255), int(b_res * 255)))
-            wheel_pixels[i, j] = [q_r / 255.0, q_g / 255.0, q_b / 255.0]
             
-    # Render the pixel array as a smooth polar grid background image
-    ax.imshow(wheel_pixels, extent=[0, 2*np.pi, 0, 1], origin='lower', aspect='auto', zorder=1)
+            # Safe linear opaque mapping 
+            mesh_rgba[i, j] = [q_r / 255.0, q_g / 255.0, q_b / 255.0, 1.0]
             
-    # Overlay connection indicators and nodes over the synced matrix background
+    # Draw perfect crisp color quadrants without alpha background bleed-through bugs
+    mesh = ax.pcolormesh(angles_grid, radii_grid, np.zeros((num_radii-1, num_angles-1)), shading='flat', zorder=1)
+    mesh.set_facecolors(mesh_rgba.reshape(-1, 4))
+            
     for idx, color in enumerate(palette):
         r_v, g_v, b_v = int(color[0]), int(color[1]), int(color[2])
         r_n, g_n, b_n = r_v / 255.0, g_v / 255.0, b_v / 255.0
