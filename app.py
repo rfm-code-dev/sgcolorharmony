@@ -9,9 +9,10 @@ st.set_page_config(page_title="Sega Genesis / Mega Drive Color Wheel", page_icon
 st.title("🎮 Sega Genesis / Mega Drive Color Wheel")
 st.markdown("Create and calculate color harmonies locked strictly to the **512 colors (9-bit VDP RGB)** of the original hardware.")
 
-# --- INJECT CUSTOM CSS TO REMOVE ROLLOVER AND FORCE PERFECT ALIGNMENT ---
+# --- INJECT CUSTOM CSS TO REMOVE ROLLOVER AND FORCE PERFECT VERTICAL ALIGNMENT ---
 st.markdown("""
     <style>
+        /* Disable mouse selection events on disabled/preview color picks */
         div[data-testid="stColorPicker"] {
             pointer-events: none !important;
             cursor: default !important;
@@ -19,12 +20,23 @@ st.markdown("""
         section[data-testid="stSidebar"] div[data-testid="stColorPicker"] {
             pointer-events: auto !important;
         }
+        
+        /* FIX: Center, block-stretch, and force uniform line height on all slot buttons */
         div[data-testid="stHorizontalBlock"] button {
-            display: block !important;
+            display: flex !important;
+            align-items: center !important;
+            justify-content: center !important;
             margin: 0 auto !important;
-            padding: 2px 4px !important;
+            padding: 2px 0px !important;
+            height: 28px !important;
             width: 100% !important;
             text-align: center !important;
+            line-height: 1 !important;
+        }
+        
+        /* Reduce the gap between button columns inside each slot */
+        div[data-testid="stHorizontalBlock"] div[data-testid="column"] {
+            padding: 0px 1px !important;
         }
     </style>
 """, unsafe_allow_html=True)
@@ -91,9 +103,43 @@ base_hex = f"#{base_genesis[0]:02X}{base_genesis[1]:02X}{base_genesis[2]:02X}"
 st.sidebar.markdown("**Selected Base Preview:**")
 st.sidebar.color_picker("Hardware Base Color", base_hex, key=f"sb_preview_{base_hex.replace('#', '')}")
 
+# --- IMPORT ASEPRITE .GPL PALETTE ---
+st.sidebar.markdown("---")
+st.sidebar.subheader("📥 Import Palette (.GPL)")
+uploaded_gpl = st.sidebar.file_uploader("Upload an Aseprite GPL file:", type=["gpl"])
+
+if uploaded_gpl is not None:
+    try:
+        gpl_lines = uploaded_gpl.read().decode("utf-8").splitlines()
+        imported_colors = []
+        for line in gpl_lines:
+            line = line.strip()
+            if not line or line.startswith("GIMP") or line.startswith("Name:") or line.startswith("Columns:") or line.startswith("#"):
+                continue
+            parts = line.split()
+            if len(parts) >= 3:
+                try:
+                    r_imp = int(parts[0])
+                    g_imp = int(parts[1])
+                    b_imp = int(parts[2])
+                    imported_colors.append(quantize_to_genesis((r_imp, g_imp, b_imp)))
+                except ValueError:
+                    continue
+        new_palette = [None] * 16
+        for idx, col in enumerate(imported_colors[:16]):
+            if col == (34, 34, 34):
+                new_palette[idx] = None
+            else:
+                new_palette[idx] = col
+        st.session_state.custom_palette = new_palette
+        st.sidebar.success(f"Successfully loaded {len(imported_colors[:16])} indices!")
+    except Exception as e:
+        st.sidebar.error("Error reading GPL file.")
+
 # Extract active hardware brightness
 r_norm, g_norm, b_norm = base_genesis[0]/255.0, base_genesis[1]/255.0, base_genesis[2]/255.0
 _, _, dynamic_value = colorsys.rgb_to_hsv(r_norm, g_norm, b_norm)
+
 
 # --- HARMONY RULE LOGIC ---
 palette = []
@@ -195,7 +241,7 @@ with col_wheel:
     fig.patch.set_facecolor('none')
     ax.set_facecolor('none')
     st.pyplot(fig)
-    
+
 with col_values:
     st.write("### Calculated Harmonies")
     cols_palette = st.columns(5)
@@ -226,7 +272,7 @@ st.markdown("---")
 st.write("### 🎛️ Active 16-Color Hardware Palette Builder")
 
 active_colors = [c for c in st.session_state.custom_palette if c is not None]
-st.caption(f"Slots filled: {len(active_colors)} / 16. (Use ◀ / ▶ arrows to organize index slots or ❌ to clear a single position).")
+st.caption(f"Slots filled: {len(active_colors)} / 16. (Use ◀ / ▶ arrows to organize index slots or X to clear a single position).")
 
 cols_16 = st.columns(16)
 for i in range(16):
@@ -247,10 +293,10 @@ for i in range(16):
                         st.session_state.custom_palette[i-1], st.session_state.custom_palette[i] = st.session_state.custom_palette[i], st.session_state.custom_palette[i-1]
                         st.rerun()
                 else:
-                    st.markdown("<div style='height:30px;'></div>", unsafe_allow_html=True)
+                    st.markdown("<div style='height:28px;'></div>", unsafe_allow_html=True)
             
             with clear_cell:
-                if st.button("❌", key=f"clear_slot_btn_{i}", help="Delete color from this slot"):
+                if st.button("X", key=f"clear_slot_btn_{i}", help="Delete color from this slot"):
                     st.session_state.custom_palette[i] = None
                     st.rerun()
                     
@@ -260,7 +306,7 @@ for i in range(16):
                         st.session_state.custom_palette[i+1], st.session_state.custom_palette[i] = st.session_state.custom_palette[i], st.session_state.custom_palette[i+1]
                         st.rerun()
                 else:
-                    st.markdown("<div style='height:30px;'></div>", unsafe_allow_html=True)
+                    st.markdown("<div style='height:28px;'></div>", unsafe_allow_html=True)
         else:
             st.color_picker(f"S{i}", "#222222", key=f"slot_box_empty_{i}", disabled=True, label_visibility="collapsed")
             st.caption("<center><code style='color:gray;'>0x----</code></center>", unsafe_allow_html=True)
