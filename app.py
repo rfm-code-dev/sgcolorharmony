@@ -31,21 +31,11 @@ def quantize_to_genesis(rgb):
 
 def rgb_to_sgdk_hex(rgb):
     """Converts RGB to native SGDK C format (0x0BGR) using 3 nibbles."""
-    r, g, b = rgb
-    r_vdp = VDP_STEPS.index(r) * 2
-    g_vdp = VDP_STEPS.index(g) * 2
-    b_vdp = VDP_STEPS.index(b) * 2
-    vdp_value = (b_vdp << 8) | (g_vdp << 4) | r_vdp
-    return f"0x{vdp_value:04X}"
+    return f"0x{VDP_STEPS.index(rgb[2])*2:01X}{VDP_STEPS.index(rgb[1])*2:01X}{VDP_STEPS.index(rgb[0])*2:01X}0"
 
 def rgb_to_asm_hex(rgb):
     """Converts RGB to traditional Assembly 68k format ($0BGR)."""
-    r, g, b = rgb
-    r_vdp = VDP_STEPS.index(r) * 2
-    g_vdp = VDP_STEPS.index(g) * 2
-    b_vdp = VDP_STEPS.index(b) * 2
-    vdp_value = (b_vdp << 8) | (g_vdp << 4) | r_vdp
-    return f"${vdp_value:04X}"
+    return f"${VDP_STEPS.index(rgb[2])*2:01X}{VDP_STEPS.index(rgb[1])*2:01X}{VDP_STEPS.index(rgb[0])*2:01X}0"
 
 def calculate_harmonies(base_rgb, angle, sat_mod=1.0, val_mod=1.0):
     """Rotates the Hue in HSV space, applies modifiers, and quantizes back to 9-bit RGB."""
@@ -73,7 +63,6 @@ harmony_rule = st.sidebar.selectbox(
 
 st.sidebar.markdown("---")
 st.sidebar.subheader("🔌 Native VDP Color Picker")
-st.sidebar.caption("Adjust hardware color channels directly from index 0 to 7.")
 
 vdp_r = st.sidebar.slider("Red Channel (VDP)", min_value=0, max_value=7, value=0)
 vdp_g = st.sidebar.slider("Green Channel (VDP)", min_value=0, max_value=7, value=6)
@@ -155,31 +144,17 @@ with col_wheel:
     st.write("### VDP 9-bit Color Wheel")
     fig, ax = plt.subplots(figsize=(4.5, 4.5), subplot_kw=dict(projection='polar'))
     
-    # RELIABLE POLAR MESH ENGINE: Native 2D polar mapping with dynamic RGB array conversion
-    num_angles = 90
-    num_radii = 25
+    # 2D CONTOUR ENGINE: Native mesh grid mapping a clean 2D array of angles
+    num_angles = 120
+    num_radii = 30
     angles_grid = np.linspace(0, 2 * np.pi, num_angles)
     radii_grid = np.linspace(0.0, 1.0, num_radii)
     
     A, R = np.meshgrid(angles_grid, radii_grid)
     
-    # Pre-render a flattened RGB 4D canvas mapping clamped to VDP steps to avoid shape type errors
-    mesh_rgba = np.zeros((num_radii - 1, num_angles - 1, 4))
-    for i in range(num_radii - 1):
-        for j in range(num_angles - 1):
-            mid_a = (angles_grid[j] + angles_grid[j+1]) / 2.0
-            mid_r = (radii_grid[i] + radii_grid[i+1]) / 2.0
-            
-            # Formulate coordinates directly with the dynamic hardware brightness value
-            r_res, g_res, b_res = colorsys.hsv_to_rgb(mid_a / (2 * np.pi), mid_r, max(0.15, dynamic_value))
-            q_r, q_g, q_b = quantize_to_genesis((int(r_res * 255), int(g_res * 255), int(b_res * 255)))
-            
-            # Safe linear opaque mapping 
-            mesh_rgba[i, j] = [q_r / 255.0, q_g / 255.0, q_b / 255.0, 1.0]
-            
-    # Draw perfect crisp color quadrants without alpha background bleed-through bugs
-    mesh = ax.pcolormesh(angles_grid, radii_grid, np.zeros((num_radii-1, num_angles-1)), shading='flat', zorder=1)
-    mesh.set_facecolors(mesh_rgba.reshape(-1, 4))
+    # Passing raw angles directly to map a native continuous rainbow spectrum
+    # Dynamic value controls the shading contrast blend over the mesh canvas
+    ax.contourf(A, R, A, cmap='hsv', levels=100, alpha=max(0.2, dynamic_value), zorder=1)
             
     for idx, color in enumerate(palette):
         r_v, g_v, b_v = int(color[0]), int(color[1]), int(color[2])
@@ -258,11 +233,13 @@ if st.session_state.custom_palette:
     tab_sgdk, tab_asm, tab_raw = st.tabs(["SGDK (C Array)", "Assembly (68k)", "Decimal Values"])
     
     with tab_sgdk:
-        sgdk_code = f"// Custom Sega Genesis Palette Block\nconst u16 custom_vdp_palette[{len(st.session_state.custom_palette)}] = {{\n    {', '.join([rgb_to_sgdk_hex(c) for c in st.session_state.custom_palette])}\n}};"
+        hex_strings = [rgb_to_sgdk_hex(c) for c in st.session_state.custom_palette]
+        sgdk_code = f"// Custom Sega Genesis Palette Block\nconst u16 custom_vdp_palette[{len(st.session_state.custom_palette)}] = {{\n    {', '.join(hex_strings)}\n}};"
         st.code(sgdk_code, language="c")
         
     with tab_asm:
-        asm_code = f"; Custom Sega Genesis Palette Block\nCustomVDPPalette:\n    dc.w {', '.join([rgb_to_asm_hex(c) for c in st.session_state.custom_palette])}"
+        asm_strings = [rgb_to_asm_hex(c) for c in st.session_state.custom_palette]
+        asm_code = f"; Custom Sega Genesis Palette Block\nCustomVDPPalette:\n    dc.w {', '.join(asm_strings)}"
         st.code(asm_code, language="asm")
         
     with tab_raw:
@@ -276,3 +253,5 @@ else:
 # --- FOOTER ---
 st.markdown("<br><hr>", unsafe_allow_html=True)
 st.caption("Sega Genesis / Mega Drive Color Wheel | Conceptualized & Tested by Rodrigo Fontanella | Code co-generated via AI Assist | Open-source community tool.")
+
+
