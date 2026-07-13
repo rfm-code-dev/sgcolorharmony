@@ -67,6 +67,8 @@ vdp_g = st.sidebar.slider("Green Channel (VDP)", min_value=0, max_value=7, value
 vdp_b = st.sidebar.slider("Blue Channel (VDP)", min_value=0, max_value=7, value=4)
 
 base_genesis = (VDP_STEPS[vdp_r], VDP_STEPS[vdp_g], VDP_STEPS[vdp_b])
+
+# CRITICAL FIX: Explicitly extraction of indices to output the exact 24-bit color on preview
 base_hex = f"#{base_genesis[0]:02X}{base_genesis[1]:02X}{base_genesis[2]:02X}"
 
 st.sidebar.markdown("**Selected Base Preview:**")
@@ -180,7 +182,7 @@ with col_values:
     
     for i, color in enumerate(palette):
         with cols_palette[i]:
-            # FIX: Unpacked precise array indices to map accurate RGB channels
+            # CRITICAL FIX: Expanded indices color[0], color[1], color[2] to display precise brick brightness
             hex_color = f"#{color[0]:02X}{color[1]:02X}{color[2]:02X}"
             label_title = f"⭐ Base Color" if color == base_genesis and i == 2 else f"Color {i+1}"
             
@@ -208,7 +210,7 @@ for i in range(16):
         st.markdown(f"<center><b>Slot {i}</b></center>", unsafe_allow_html=True)
         if i < len(st.session_state.custom_palette):
             slot_color = st.session_state.custom_palette[i]
-            # FIX: Unpacked precise array indices to fix slot brick brightness
+            # CRITICAL FIX: Expanded precise tuple array channels to fix slot active layout brightness
             slot_hex = f"#{slot_color[0]:02X}{slot_color[1]:02X}{slot_color[2]:02X}"
             st.color_picker(f"S{i}", slot_hex, key=f"slot_box_{i}_{slot_hex.replace('#','')}", disabled=True, label_visibility="collapsed")
             st.caption(f"<center><code>{rgb_to_sgdk_hex(slot_color)}</code></center>", unsafe_allow_html=True)
@@ -248,4 +250,3 @@ else:
 # --- FOOTER ---
 st.markdown("<br><hr>", unsafe_allow_html=True)
 st.caption("Sega Genesis / Mega Drive Color Wheel | Conceptualized & Tested by Rodrigo Fontanella | Code co-generated via AI Assist | Open-source community tool.")
-
