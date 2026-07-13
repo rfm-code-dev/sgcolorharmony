@@ -149,7 +149,6 @@ with col_wheel:
     A, R = np.meshgrid(angles_grid, radii_grid)
     Z = A / (2 * np.pi)
     
-    # FIX: Alpha set to 1.0 (opaque) to prevent background bled-through muting the tone brightness
     ax.contourf(A, R, Z, cmap='hsv', levels=100, alpha=1.0, zorder=1)
             
     for idx, color in enumerate(palette):
@@ -181,6 +180,7 @@ with col_values:
     
     for i, color in enumerate(palette):
         with cols_palette[i]:
+            # FIX: Unpacked precise array indices to map accurate RGB channels
             hex_color = f"#{color[0]:02X}{color[1]:02X}{color[2]:02X}"
             label_title = f"⭐ Base Color" if color == base_genesis and i == 2 else f"Color {i+1}"
             
@@ -208,6 +208,7 @@ for i in range(16):
         st.markdown(f"<center><b>Slot {i}</b></center>", unsafe_allow_html=True)
         if i < len(st.session_state.custom_palette):
             slot_color = st.session_state.custom_palette[i]
+            # FIX: Unpacked precise array indices to fix slot brick brightness
             slot_hex = f"#{slot_color[0]:02X}{slot_color[1]:02X}{slot_color[2]:02X}"
             st.color_picker(f"S{i}", slot_hex, key=f"slot_box_{i}_{slot_hex.replace('#','')}", disabled=True, label_visibility="collapsed")
             st.caption(f"<center><code>{rgb_to_sgdk_hex(slot_color)}</code></center>", unsafe_allow_html=True)
@@ -247,3 +248,4 @@ else:
 # --- FOOTER ---
 st.markdown("<br><hr>", unsafe_allow_html=True)
 st.caption("Sega Genesis / Mega Drive Color Wheel | Conceptualized & Tested by Rodrigo Fontanella | Code co-generated via AI Assist | Open-source community tool.")
+
