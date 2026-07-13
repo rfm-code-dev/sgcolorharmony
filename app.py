@@ -79,12 +79,12 @@ vdp_g = st.sidebar.slider("Green Channel (VDP)", min_value=0, max_value=7, value
 vdp_b = st.sidebar.slider("Blue Channel (VDP)", min_value=0, max_value=7, value=4)
 
 base_genesis = (VDP_STEPS[vdp_r], VDP_STEPS[vdp_g], VDP_STEPS[vdp_b])
-base_hex = f"#{base_genesis[0]:02X}{base_genesis[1]:02X}{base_genesis[2]:02X}"
+base_hex = f"#{base_genesis:02X}{base_genesis:02X}{base_genesis:02X}"
 
 st.sidebar.markdown("**Selected Base Preview:**")
 st.sidebar.color_picker("Hardware Base Color", base_hex, key=f"sb_preview_{base_hex.replace('#', '')}")
 
-# Extract active hardware brightness/value context dynamically to drive matrix computation
+# Extract active hardware brightness/value context dynamically
 r_norm, g_norm, b_norm = base_genesis[0]/255.0, base_genesis[1]/255.0, base_genesis[2]/255.0
 _, _, dynamic_value = colorsys.rgb_to_hsv(r_norm, g_norm, b_norm)
 
@@ -153,38 +153,30 @@ col_wheel, col_values = st.columns([1, 1.2])
 with col_wheel:
     st.write("### VDP 9-bit Color Wheel")
     
-    # Requirement #1: Diminished figure window constraints size from 4.5 down to 3.2
+    # Reduzindo o tamanho físico da roda na tela para 3.2 (Item 1)
     fig, ax = plt.subplots(figsize=(3.2, 3.2), subplot_kw=dict(projection='polar'))
     
-    # Requirement #2: Advanced Dynamic HSV Mapping Engine
-    num_angles = 90
-    num_radii = 20
-    angles_grid = np.linspace(0, 2 * np.pi, num_angles)
-    radii_grid = np.linspace(0.0, 1.0, num_radii)
+    # BULLETPROOF SCATTER ENGINE: Dense point matrix for total type safety and stable colors
+    # Centro nasce branco, borda satura, e a roda obedece ao brilho dinâmico (Item 2)
+    angles_bg = np.linspace(0, 2 * np.pi, 64, endpoint=False)
+    # Distribuição quadrática para agrupar as bolinhas de forma uniforme perto da borda externa
+    radii_bg = np.sqrt(np.linspace(0.01, 1.0, 12))
     
-    # Render custom facecolors to simulate real HSB/HSV dynamic grading responses
-    mesh_rgba = np.zeros((num_radii - 1, num_angles - 1, 4))
-    for i in range(num_radii - 1):
-        for j in range(num_angles - 1):
-            mid_a = (angles_grid[j] + angles_grid[j+1]) / 2.0
-            mid_r = (radii_grid[i] + radii_grid[i+1]) / 2.0
-            
-            # Center of the wheel maps to white/pastel, edges map to full native saturation
-            # Overall intensity matches the hardware base value brightness selection
-            r_res, g_res, b_res = colorsys.hsv_to_rgb(mid_a / (2 * np.pi), mid_r, max(0.0, dynamic_value))
+    for a in angles_bg:
+        for r_g in radii_bg:
+            # Multiplicamos o raio e o brilho para fazer a física real do Adobe Color
+            r_res, g_res, b_res = colorsys.hsv_to_rgb(a / (2 * np.pi), r_g, max(0.0, dynamic_value))
             q_r, q_g, q_b = quantize_to_genesis((int(r_res * 255), int(g_res * 255), int(b_res * 255)))
-            mesh_rgba[i, j] = [q_r / 255.0, q_g / 255.0, q_b / 255.0, 1.0]
             
-    mesh = ax.pcolormesh(angles_grid, radii_grid, np.zeros((num_radii-1, num_angles-1)), shading='flat', zorder=1)
-    mesh.set_facecolors(mesh_rgba.reshape(-1, 4))
+            # Tamanho fixo confortável e uniforme
+            ax.scatter(a, r_g, color=f"#{q_r:02X}{q_g:02X}{q_b:02X}", s=25, alpha=0.9, linewidths=0, zorder=1)
             
+    # Linhas de conexão e nós principais travados na frente (zorder=10)
     for idx, color in enumerate(palette):
         r_v, g_v, b_v = int(color[0]), int(color[1]), int(color[2])
         r_n, g_n, b_n = r_v / 255.0, g_v / 255.0, b_v / 255.0
         h, s, v = colorsys.rgb_to_hsv(r_n, g_n, b_n)
         rad_angle = h * 2 * np.pi
-        
-        # Position nodes precisely on the graph map based on calculated hardware saturation bounds
         s_plot = max(0.02, s)
         
         ax.plot([0, rad_angle], [0, s_plot], color="white", linestyle="--", alpha=0.9, linewidth=1.5, zorder=5)
