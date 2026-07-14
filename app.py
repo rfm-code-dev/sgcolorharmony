@@ -31,19 +31,17 @@ st.markdown("""
             width: 100% !important;
         }
         
-        /* FIX 2: Force color pickers AND their parent wrappers to be cravated in the absolute horizontal center */
-        div[data-testid="stColorPicker"], 
-        div[data-testid="stColorPickerBlock"],
-        .stColorPicker,
-        div[data-testid="stColorPicker"] > div {
+        /* FIX 2: Ensure color picker blocks maintain 100% width but center their internal color square */
+        div[data-testid="stColorPicker"], div[data-testid="stColorPickerBlock"] {
             display: flex !important;
             justify-content: center !important;
             align-items: center !important;
             margin: 0 auto !important;
-            text-align: center !important;
+            width: 100% !important;
         }
         div[data-testid="stColorPicker"] > div {
-            width: 44px !important; /* Locks native square blueprint sizing */
+            margin: 0 auto !important;
+            width: 44px !important;
         }
         
         /* FIX 3: Force 'Add' and wrapper button divs to align to the absolute center of their grids */
@@ -285,8 +283,7 @@ with col_values:
                     </div>
                 """, unsafe_allow_html=True)
                 
-                # FIXED OPTIMIZATION: Removed sub-columns from the micro add box. 
-                # Rendering st.button directly inside the main centered column container forces full 100% vertical block symmetry.
+                # FIXED BUTTON CENTER: Renders natively inside the container without any grid columns to prevent right shifts
                 if st.button("➕ Add", key=f"add_btn_{i}_{hex_color.replace('#', '')}"):
                     inserted = False
                     for s_idx in range(16):
@@ -391,6 +388,7 @@ if [c for c in st.session_state.custom_palette if c is not None]:
     )
     st.markdown("<br>", unsafe_allow_html=True)
 
+    # DEFINITIVE SYNTAX FIX: Initializing standard tabs cleanly
     tab_sgdk, tab_asm, tab_raw = st.tabs(["SGDK (C Array)", "Assembly (68k)", "Decimal Values"])
     
     with tab_sgdk:
@@ -403,7 +401,7 @@ if [c for c in st.session_state.custom_palette if c is not None]:
         asm_code = f"; Custom Sega Genesis Palette Block\nCustomVDPPalette:\n    dc.w {', '.join(asm_strings)}"
         st.code(asm_code, language="asm")
         
-    with tab_raw = st.tabs(["SGDK (C Array)", "Assembly (68k)", "Decimal Values"])[2]:
+    with tab_raw:
         st.text("Raw RGB Tuple List Layout:")
         for idx, c in enumerate(st.session_state.custom_palette):
             if c is not None:
