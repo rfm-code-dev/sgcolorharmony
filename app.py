@@ -21,7 +21,7 @@ st.markdown("""
             pointer-events: auto !important;
         }
         
-        /* Force absolute horizontal centralization on ALL components inside layout columns */
+        /* FIX 1: Force absolute horizontal centralization on ALL components inside layout columns */
         div[data-testid="column"] {
             display: flex !important;
             flex-direction: column !important;
@@ -31,7 +31,22 @@ st.markdown("""
             width: 100% !important;
         }
         
-        /* Force 'Add' and wrapper button divs to align to the absolute center of their grids */
+        /* FIX 2: Force color pickers AND their parent wrappers to be cravated in the absolute horizontal center */
+        div[data-testid="stColorPicker"], 
+        div[data-testid="stColorPickerBlock"],
+        .stColorPicker,
+        div[data-testid="stColorPicker"] > div {
+            display: flex !important;
+            justify-content: center !important;
+            align-items: center !important;
+            margin: 0 auto !important;
+            text-align: center !important;
+        }
+        div[data-testid="stColorPicker"] > div {
+            width: 44px !important; /* Locks native square blueprint sizing */
+        }
+        
+        /* FIX 3: Force 'Add' and wrapper button divs to align to the absolute center of their grids */
         div.stButton, div[data-testid="stHorizontalBlock"] div.stButton, .stButton {
             display: flex !important;
             justify-content: center !important;
@@ -40,7 +55,7 @@ st.markdown("""
             width: 100% !important;
         }
         
-        /* Reset markdown and caption elements to align text natively in the center */
+        /* FIX 4: Reset markdown and caption elements to align text natively in the center */
         div[data-testid="stMarkdown"], div[data-testid="stCaptionBlock"], p, center, b, code {
             display: block !important;
             text-align: center !important;
@@ -247,7 +262,9 @@ with col_wheel:
     fig, ax = plt.subplots(figsize=(3.2, 3.2), subplot_kw=dict(projection='polar'))
     
     ax.set_autoscale_on(False)
-    ax.set_rmax(1.0)
+    # FIX: Expanded rmax boundary to 1.12 to form a defensive safety margin padding. 
+    # This prevents the outermost ring from getting clipped or chopped by the graph edge.
+    ax.set_rmax(1.12)
     
     angles_bg = np.linspace(0, 2 * np.pi, 64, endpoint=False)
     radii_bg = np.linspace(0.08, 1.0, 10)
@@ -293,8 +310,6 @@ with col_values:
                 hex_color = f"#{r_c:02X}{g_c:02X}{b_c:02X}"
                 label_title = f"⭐ Base" if color == base_genesis and i == 2 else f"Color {i+1}"
                 
-                # ULTIMATE SYMMETRY FIX: Injected an explicit text center wrapper into a unified single HTML block.
-                # This guarantees that the Title, Color Brick, SGDK code, and RGB tuples are locked on the same vertical center line.
                 st.markdown(f"""
                     <div style="display:flex; flex-direction:column; align-items:center; width:100%; text-align:center;">
                         <div style="font-weight:bold; font-size:14px; margin-bottom:5px;">{label_title}</div>
@@ -304,8 +319,7 @@ with col_values:
                     </div>
                 """, unsafe_allow_html=True)
                 
-                # Native Streamlit columns layout centering the st.button physically inside the column footprint
-                col_btn_l, col_btn_mid, col_btn_r = st.columns([1, 4, 1])
+                col_btn_l, col_btn_mid, col_btn_r = st.columns([1, 2, 1])
                 with col_btn_mid:
                     if st.button("➕ Add", key=f"add_btn_{i}_{hex_color.replace('#', '')}"):
                         inserted = False
@@ -343,7 +357,6 @@ for i in range(16):
                 r_sl, g_sl, b_sl = int(slot_data[0]), int(slot_data[1]), int(slot_data[2])
                 slot_hex = f"#{r_sl:02X}{g_sl:02X}{b_sl:02X}"
                 
-                # Centered native HTML layout for the color slot bricks
                 st.markdown(f"""
                     <div style="display:flex; flex-direction:column; align-items:center; width:100%; text-align:center; margin-bottom:5px;">
                         <div style="width:40px; height:44px; background-color:{slot_hex}; border-radius:4px; border:2px solid #555; box-shadow:0px 2px 4px rgba(0,0,0,0.2); margin-bottom:4px;"></div>
