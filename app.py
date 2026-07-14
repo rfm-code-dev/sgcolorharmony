@@ -109,7 +109,7 @@ def calculate_harmonies(base_rgb, angle, sat_mod=1.0, val_mod=1.0):
     r_res, g_res, b_res = colorsys.hsv_to_rgb(h_new, s_new, v_new)
     return quantize_to_genesis((int(r_res * 255), int(g_res * 255), int(b_res * 255)))
 
-# --- FIXED ULTRA PERFORMANCE ENGINE: Pre-calculating arrays into single memory blocks ---
+# --- FIXED ULTRA PERFORMANCE ENGINE ---
 @st.cache_data
 def get_cached_precomputed_wheel(brightness_val):
     angles = np.linspace(0, 2 * np.pi, 64, endpoint=False)
@@ -245,15 +245,16 @@ with col_values:
                     </div>
                 """, unsafe_allow_html=True)
                 
+                # CRITICAL BUGFIX: Pointing explicit list indexes [0] and [1] for move_cols array block to kill NameError loop
                 move_cols = st.columns(2)
-                with move_cols:
-                    if st.button("+Add", key=f"add_native_{i}_{hex_color.replace('#','')}"):
+                with move_cols[0]:
+                    if st.button("+Add", key=f"add_native_{i}_{hex_color.replace('#',' Concordant')}"):
                         for s_idx in range(16):
                             if st.session_state.custom_palette[s_idx] is None:
                                 st.session_state.custom_palette[s_idx] = color
                                 break
                         st.rerun()
-                with move_cols:
+                with move_cols[1]:
                     if st.button("Ramp", key=f"ramp_trigger_{i}_{hex_color.replace('#','')}"):
                         st.session_state.active_ramp_source = color
                         st.rerun()
@@ -286,8 +287,6 @@ with col_values:
                             
     st.markdown("<div style='height:10px;'></div>", unsafe_allow_html=True)
     
-    # SILENT INTERFACE OPTIMIZATION: Banners only show up at 0 slots or at exact 16 complete limit.
-    # From 1 to 15 slots, no message box spans on the canvas to protect workspace clean layout.
     filled_count = len([c for c in st.session_state.custom_palette if c is not None])
     if filled_count == 0:
         st.info("💡 Add individual colors via **+Add**, or hit **Ramp** to calculate light/shadow structures automatically.")
