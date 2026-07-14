@@ -122,7 +122,7 @@ def calculate_harmonies(base_rgb, angle, sat_mod=1.0, val_mod=1.0):
     r_res, g_res, b_res = colorsys.hsv_to_rgb(h_new, s_new, v_new)
     return quantize_to_genesis((int(r_res * 255), int(g_res * 255), int(b_res * 255)))
 
-# --- FIXED ULTRA PERFORMANCE ENGINE: Pre-calculating arrays into single memory blocks ---
+# --- ULTRA PERFORMANCE ENGINE: Pre-calculating arrays into single memory blocks ---
 @st.cache_data
 def get_cached_precomputed_wheel(brightness_val):
     angles = np.linspace(0, 2 * np.pi, 64, endpoint=False)
@@ -283,22 +283,24 @@ with col_values:
                     </div>
                 """, unsafe_allow_html=True)
                 
-                # FIXED BUTTON CENTER: Renders natively inside the container without any grid columns to prevent right shifts
-                if st.button("➕ Add", key=f"add_btn_{i}_{hex_color.replace('#', '')}"):
-                    inserted = False
-                    for s_idx in range(16):
-                        if st.session_state.custom_palette[s_idx] is None:
-                            st.session_state.custom_palette[s_idx] = color
-                            inserted = True
-                            break
-                    if inserted:
-                        st.rerun()
-                    else:
-                        st.sidebar.error("All 16 slots are full!")
+                # DEFINITIVE FIX: Using balanced sub-columns grid layout matrix [1, 2, 1] to clamp the button directly in the center line
+                col_btn_l, col_btn_mid, col_btn_r = st.columns([1, 2, 1])
+                with col_btn_mid:
+                    if st.button("➕", key=f"add_btn_{i}_{hex_color.replace('#', '')}", help="Add to workspace"):
+                        inserted = False
+                        for s_idx in range(16):
+                            if st.session_state.custom_palette[s_idx] is None:
+                                st.session_state.custom_palette[s_idx] = color
+                                inserted = True
+                                break
+                        if inserted:
+                            st.rerun()
+                        else:
+                            st.sidebar.error("All 16 slots are full!")
 
     st.markdown("<div style='height:15px;'></div>", unsafe_allow_html=True)
     if not any(c is not None for c in st.session_state.custom_palette):
-        st.info("💡 Add colors using the **➕ Add** buttons above to populate your 16-color workspace and unlock the export generator panel below.")
+        st.info("💡 Add colors using the **➕** buttons above to populate your 16-color workspace and unlock the export generator panel below.")
     else:
         st.success("💡 Colors added successfully! Organize your sequence below using the arrow controls.")
 
@@ -388,7 +390,6 @@ if [c for c in st.session_state.custom_palette if c is not None]:
     )
     st.markdown("<br>", unsafe_allow_html=True)
 
-    # DEFINITIVE SYNTAX FIX: Initializing standard tabs cleanly
     tab_sgdk, tab_asm, tab_raw = st.tabs(["SGDK (C Array)", "Assembly (68k)", "Decimal Values"])
     
     with tab_sgdk:
