@@ -348,7 +348,7 @@ if [c for c in st.session_state.custom_palette if c is not None]:
     tab_sgdk, tab_asm, tab_raw = st.tabs(["SGDK (C Array)", "Assembly (68k)", "Decimal Values"])
     with tab_sgdk:
         hex_strings = [rgb_to_sgdk_hex(c) for c in st.session_state.custom_palette if c is not None]
-        st.code(f"// Custom Sega Genesis Palette Block\nconst u16 custom_vdp_palette[{len(hex_strings)}] = {{\n    {', '.join(hex_strings)}\n}};" language="c")
+        st.code(f"// Custom Sega Genesis Palette Block\nconst u16 custom_vdp_palette[{len(hex_strings)}] = {{\n    {', '.join(hex_strings)}\n}};", language="c")
     with tab_asm:
         asm_strings = [rgb_to_asm_hex(c) for c in st.session_state.custom_palette if c is not None]
         st.code(f"; Custom Sega Genesis Palette Block\nCustomVDPPalette:\n    dc.w {', '.join(asm_strings)}", language="asm")
