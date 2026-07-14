@@ -31,17 +31,19 @@ st.markdown("""
             width: 100% !important;
         }
         
-        /* FIX 2: Ensure color picker blocks maintain 100% width but center their internal color square */
-        div[data-testid="stColorPicker"], div[data-testid="stColorPickerBlock"] {
+        /* FIX 2: Force color pickers AND their parent wrappers to be cravated in the absolute horizontal center */
+        div[data-testid="stColorPicker"], 
+        div[data-testid="stColorPickerBlock"],
+        .stColorPicker,
+        div[data-testid="stColorPicker"] > div {
             display: flex !important;
             justify-content: center !important;
             align-items: center !important;
             margin: 0 auto !important;
-            width: 100% !important;
+            text-align: center !important;
         }
         div[data-testid="stColorPicker"] > div {
-            margin: 0 auto !important;
-            width: 44px !important;
+            width: 44px !important; /* Locks native square blueprint sizing */
         }
         
         /* FIX 3: Force 'Add' and wrapper button divs to align to the absolute center of their grids */
@@ -237,7 +239,6 @@ with col_wheel:
     ax.set_autoscale_on(False)
     ax.set_rmax(1.12)
     
-    # ⚡ VETORIAL INJECTION: Draws 640 dots in ONE single microsecond operation instead of a heavy loop!
     bg_a, bg_r, bg_c = get_cached_precomputed_wheel(dynamic_value)
     ax.scatter(bg_a, bg_r, color=bg_c, s=15, alpha=0.9, linewidths=0, zorder=1)
             
@@ -258,11 +259,7 @@ with col_wheel:
     fig.patch.set_facecolor('none')
     ax.set_facecolor('none')
     
-    # Render graphic canvas
     st.pyplot(fig)
-    
-    # 🛑 MEMORY LEAK FIX: Force closes the active plot immediately to clear server cache.
-    # This prevents the dots from compounding over time and fixes the giant-circle bug!
     plt.close(fig)
 
 
@@ -288,23 +285,23 @@ with col_values:
                     </div>
                 """, unsafe_allow_html=True)
                 
-                col_btn_l, col_btn_mid, col_btn_r = st.columns(3)
-                with col_btn_mid:
-                    if st.button("➕", key=f"add_btn_{i}_{hex_color.replace('#', '')}"):
-                        inserted = False
-                        for s_idx in range(16):
-                            if st.session_state.custom_palette[s_idx] is None:
-                                st.session_state.custom_palette[s_idx] = color
-                                inserted = True
-                                break
-                        if inserted:
-                            st.rerun()
-                        else:
-                            st.sidebar.error("All 16 slots are full!")
+                # FIXED OPTIMIZATION: Removed sub-columns from the micro add box. 
+                # Rendering st.button directly inside the main centered column container forces full 100% vertical block symmetry.
+                if st.button("➕ Add", key=f"add_btn_{i}_{hex_color.replace('#', '')}"):
+                    inserted = False
+                    for s_idx in range(16):
+                        if st.session_state.custom_palette[s_idx] is None:
+                            st.session_state.custom_palette[s_idx] = color
+                            inserted = True
+                            break
+                    if inserted:
+                        st.rerun()
+                    else:
+                        st.sidebar.error("All 16 slots are full!")
 
     st.markdown("<div style='height:15px;'></div>", unsafe_allow_html=True)
     if not any(c is not None for c in st.session_state.custom_palette):
-        st.info("💡 Add colors using the **➕** buttons above to populate your 16-color workspace and unlock the export generator panel below.")
+        st.info("💡 Add colors using the **➕ Add** buttons above to populate your 16-color workspace and unlock the export generator panel below.")
     else:
         st.success("💡 Colors added successfully! Organize your sequence below using the arrow controls.")
 
@@ -406,7 +403,7 @@ if [c for c in st.session_state.custom_palette if c is not None]:
         asm_code = f"; Custom Sega Genesis Palette Block\nCustomVDPPalette:\n    dc.w {', '.join(asm_strings)}"
         st.code(asm_code, language="asm")
         
-    with tab_raw:
+    with tab_raw = st.tabs(["SGDK (C Array)", "Assembly (68k)", "Decimal Values"])[2]:
         st.text("Raw RGB Tuple List Layout:")
         for idx, c in enumerate(st.session_state.custom_palette):
             if c is not None:
