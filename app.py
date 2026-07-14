@@ -31,29 +31,7 @@ st.markdown("""
             width: 100% !important;
         }
         
-        /* FIX 2: Ensure color picker blocks maintain 100% width but center their internal color square */
-        div[data-testid="stColorPicker"], div[data-testid="stColorPickerBlock"] {
-            display: flex !important;
-            justify-content: center !important;
-            align-items: center !important;
-            margin: 0 auto !important;
-            width: 100% !important;
-        }
-        div[data-testid="stColorPicker"] > div {
-            margin: 0 auto !important;
-            width: 44px !important;
-        }
-        
-        /* FIX 3: Force 'Add' and wrapper button divs to align to the absolute center of their grids */
-        div.stButton, div[data-testid="stHorizontalBlock"] div.stButton, .stButton {
-            display: flex !important;
-            justify-content: center !important;
-            align-items: center !important;
-            margin: 0 auto !important;
-            width: 100% !important;
-        }
-        
-        /* FIX 4: Reset markdown and caption elements to align text natively in the center */
+        /* FIX 2: Reset markdown and caption elements to align text natively in the center */
         div[data-testid="stMarkdown"], div[data-testid="stCaptionBlock"], p, center, b, code {
             display: block !important;
             text-align: center !important;
@@ -61,7 +39,7 @@ st.markdown("""
             margin: 0 auto !important;
         }
         
-        /* Force uniform line height and design footprint on all slot controls */
+        /* Force uniform line height and design footprint on bottom slot controls */
         div[data-testid="stHorizontalBlock"] button, div.stButton > button {
             display: flex !important;
             align-items: center !important;
@@ -122,7 +100,7 @@ def calculate_harmonies(base_rgb, angle, sat_mod=1.0, val_mod=1.0):
     r_res, g_res, b_res = colorsys.hsv_to_rgb(h_new, s_new, v_new)
     return quantize_to_genesis((int(r_res * 255), int(g_res * 255), int(b_res * 255)))
 
-# --- ULTRA PERFORMANCE ENGINE: Pre-calculating arrays into single memory blocks ---
+# --- FIXED ULTRA PERFORMANCE ENGINE: Pre-calculating arrays into single memory blocks ---
 @st.cache_data
 def get_cached_precomputed_wheel(brightness_val):
     angles = np.linspace(0, 2 * np.pi, 64, endpoint=False)
@@ -143,6 +121,29 @@ def get_cached_precomputed_wheel(brightness_val):
 # --- INITIALIZE PALETTE ARRAY SLOTS AS FIXED 16 ELEMENT LIST ---
 if "custom_palette" not in st.session_state or len(st.session_state.custom_palette) != 16:
     st.session_state.custom_palette = [None] * 16
+
+# --- INTERCEPT AND PROCESS HYBRID HTML ADD CLICKS VIA URL PARAMETERS ---
+# This catches clicks from the custom aligned HTML buttons instantly
+query_params = st.query_params
+if "add_r" in query_params and "add_g" in query_params and "add_b" in query_params:
+    try:
+        r_add = int(query_params["add_r"])
+        g_add = int(query_params["add_g"])
+        b_add = int(query_params["add_b"])
+        color_to_add = (r_add, g_add, b_add)
+        
+        # Find first empty slot to inject color color arrays
+        inserted = False
+        for s_idx in range(16):
+            if st.session_state.custom_palette[s_idx] is None:
+                st.session_state.custom_palette[s_idx] = color_to_add
+                inserted = True
+                break
+        # Clear URL parameters immediately to clean context state loops
+        st.query_params.clear()
+        st.rerun()
+    except Exception:
+        pass
 
 # --- SIDEBAR CONFIGURATION ---
 st.sidebar.header("🕹️ Harmony Panel")
@@ -274,33 +275,39 @@ with col_values:
                 hex_color = f"#{r_c:02X}{g_c:02X}{b_c:02X}"
                 label_title = f"⭐ Base" if color == base_genesis and i == 2 else f"Color {i+1}"
                 
+                # REVOLUTIONARY FIX: Swapped the Streamlit button for an inline native CSS flex button.
+                # This explicitly locks BOTH the color brick and the '+ Add' controller button on the same vertical center line!
                 st.markdown(f"""
                     <div style="display:flex; flex-direction:column; align-items:center; width:100%; text-align:center;">
                         <div style="font-weight:bold; font-size:14px; margin-bottom:5px;">{label_title}</div>
                         <div style="width:44px; height:44px; background-color:{hex_color}; border-radius:4px; border:2px solid #555; box-shadow:0px 2px 4px rgba(0,0,0,0.25); margin-bottom:6px;"></div>
                         <div style="margin-bottom:2px;"><code>{rgb_to_sgdk_hex(color)}</code></div>
                         <div style="color:gray; font-size:11px; margin-bottom:8px;">({r_c},{g_c},{b_c})</div>
+                        <a href="?add_r={r_c}&add_g={g_c}&add_b={b_c}" target="_self" style="
+                            display: flex;
+                            align-items: center;
+                            justify-content: center;
+                            width: 65px;
+                            height: 24px;
+                            background-color: #262730;
+                            color: #ffffff;
+                            border: 1px solid #464855;
+                            border-radius: 4px;
+                            text-decoration: none;
+                            font-size: 12px;
+                            font-weight: bold;
+                            margin: 0 auto;
+                            cursor: pointer;
+                            transition: background-color 0.2s;
+                        " onmouseover="this.style.backgroundColor='#3a3c4a'" onmouseout="this.style.backgroundColor='#262730'">
+                            + Add
+                        </a>
                     </div>
                 """, unsafe_allow_html=True)
-                
-                # DEFINITIVE FIX: Using balanced sub-columns grid layout matrix [1, 2, 1] to clamp the button directly in the center line
-                col_btn_l, col_btn_mid, col_btn_r = st.columns([1, 2, 1])
-                with col_btn_mid:
-                    if st.button("➕", key=f"add_btn_{i}_{hex_color.replace('#', '')}", help="Add to workspace"):
-                        inserted = False
-                        for s_idx in range(16):
-                            if st.session_state.custom_palette[s_idx] is None:
-                                st.session_state.custom_palette[s_idx] = color
-                                inserted = True
-                                break
-                        if inserted:
-                            st.rerun()
-                        else:
-                            st.sidebar.error("All 16 slots are full!")
 
     st.markdown("<div style='height:15px;'></div>", unsafe_allow_html=True)
     if not any(c is not None for c in st.session_state.custom_palette):
-        st.info("💡 Add colors using the **➕** buttons above to populate your 16-color workspace and unlock the export generator panel below.")
+        st.info("💡 Add colors using the **+ Add** buttons above to populate your 16-color workspace and unlock the export generator panel below.")
     else:
         st.success("💡 Colors added successfully! Organize your sequence below using the arrow controls.")
 
