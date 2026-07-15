@@ -9,7 +9,7 @@ st.set_page_config(page_title="Sega Genesis / Mega Drive Color Wheel", page_icon
 st.title("🎮 Sega Genesis / Mega Drive Color Wheel")
 st.markdown("Create and calculate color harmonies locked strictly to the **512 colors (9-bit VDP RGB)** of the original hardware.")
 
-# --- INJECT CUSTOM CSS FOR PERFECT GLOBAL ALIGNMENT AND SYMMETRY ---
+# --- INJECT CUSTOM CSS FOR RGB SLIDERS AND PERFECT ALIGNMENT ---
 st.markdown("""
     <style>
         /* Disable mouse selection events on disabled/preview color picks */
@@ -31,7 +31,7 @@ st.markdown("""
             width: 100% !important;
         }
         
-        /* FIX 2: Reset markdown and caption elements to align text natively in the center */
+        /* FIX 2: Reset markdown elements to align text natively in the center */
         div[data-testid="stMarkdown"], div[data-testid="stCaptionBlock"], p, center, b, code {
             display: block !important;
             text-align: center !important;
@@ -39,7 +39,7 @@ st.markdown("""
             margin: 0 auto !important;
         }
         
-        /* Force uniform line height and design footprint on controls */
+        /* Force uniform design footprint on controls */
         div[data-testid="stHorizontalBlock"] button, div.stButton > button {
             display: flex !important;
             align-items: center !important;
@@ -54,11 +54,39 @@ st.markdown("""
             font-weight: bold !important;
         }
         
-        /* Specific custom color styles for the Ramp trigger buttons to keep them distinct */
+        /* Specific custom color styles for the Ramp trigger buttons */
         div[data-testid="column"] button[key^="ramp_trigger_"] {
             background-color: #1E3A8A !important;
             color: #ffffff !important;
             border: 1px solid #3B82F6 !important;
+        }
+        
+        /* --- NEW: CUSTOM RGB SIDEBAR SLIDERS COLORS --- */
+        /* Red Slider Customization */
+        div[data-testid="stSidebar"] div[data-st-key="vdp_r_container"] div[role="slider"] {
+            background-color: #FF3333 !important;
+            border-color: #FF3333 !important;
+        }
+        div[data-testid="stSidebar"] div[data-st-key="vdp_r_container"] div[data-testid="stSliderTrack"] > div div {
+            background-color: #FF3333 !important;
+        }
+
+        /* Green Slider Customization */
+        div[data-testid="stSidebar"] div[data-st-key="vdp_g_container"] div[role="slider"] {
+            background-color: #33CC33 !important;
+            border-color: #33CC33 !important;
+        }
+        div[data-testid="stSidebar"] div[data-st-key="vdp_g_container"] div[data-testid="stSliderTrack"] > div div {
+            background-color: #33CC33 !important;
+        }
+
+        /* Blue Slider Customization */
+        div[data-testid="stSidebar"] div[data-st-key="vdp_b_container"] div[role="slider"] {
+            background-color: #3366FF !important;
+            border-color: #3366FF !important;
+        }
+        div[data-testid="stSidebar"] div[data-st-key="vdp_b_container"] div[data-testid="stSliderTrack"] > div div {
+            background-color: #3366FF !important;
         }
         
         /* Eliminate unexpected layout padding issues */
@@ -76,13 +104,11 @@ st.markdown("""
 VDP_STEPS = (0, 36, 73, 109, 146, 182, 219, 255)
 
 def quantize_to_genesis(rgb):
-    """Snaps any standard RGB color to the nearest native Sega Genesis VDP color."""
     if not isinstance(rgb, tuple) or len(rgb) != 3:
         return (0, 0, 0)
     return tuple(min(VDP_STEPS, key=lambda x: abs(x - c)) for c in rgb)
 
 def rgb_to_sgdk_hex(rgb):
-    """Converts RGB to native SGDK C format (0x0BGR) using 3 nibbles."""
     r, g, b = rgb
     r_vdp = VDP_STEPS.index(r) * 2
     g_vdp = VDP_STEPS.index(g) * 2
@@ -91,7 +117,6 @@ def rgb_to_sgdk_hex(rgb):
     return f"0x{vdp_value:04X}"
 
 def rgb_to_asm_hex(rgb):
-    """Converts RGB to traditional Assembly 68k format ($0BGR)."""
     r, g, b = rgb
     r_vdp = VDP_STEPS.index(r) * 2
     g_vdp = VDP_STEPS.index(g) * 2
@@ -100,18 +125,14 @@ def rgb_to_asm_hex(rgb):
     return f"${vdp_value:04X}"
 
 def calculate_harmonies(base_rgb, angle, sat_mod=1.0, val_mod=1.0):
-    """Rotates the Hue in HSV space, applies modifiers, and quantizes back to 9-bit RGB."""
     r, g, b = [c / 255.0 for c in base_rgb]
     h, s, v = colorsys.rgb_to_hsv(r, g, b)
-    
     h_new = (h + (angle / 360.0)) % 1.0
     s_new = max(0.0, min(1.0, s * sat_mod))
     v_new = max(0.0, min(1.0, v * val_mod))
-    
     r_res, g_res, b_res = colorsys.hsv_to_rgb(h_new, s_new, v_new)
     return quantize_to_genesis((int(r_res * 255), int(g_res * 255), int(b_res * 255)))
 
-# --- COLOR RAMP ENGINE: Generates a mathematically perfect 8-step hardware gradient ---
 def generate_hardware_ramp(base_rgb):
     if not isinstance(base_rgb, tuple) or len(base_rgb) != 3:
         return [(0,0,0)] * 8
@@ -149,7 +170,6 @@ if "custom_palette" not in st.session_state or len(st.session_state.custom_palet
 if "active_ramp_source" not in st.session_state:
     st.session_state.active_ramp_source = None
 
-# --- SAFETY GUARDIAN: Force clear ghost link strings from old browser history loops ---
 st.query_params.clear()
 
 # --- SIDEBAR CONFIGURATION ---
@@ -158,24 +178,25 @@ harmony_rule = st.sidebar.selectbox("Harmony Rule:", ["Analogous", "Monochromati
 st.sidebar.markdown("---")
 st.sidebar.subheader("🔌 Native VDP Color Picker")
 
+# HTML wrappers dynamically identify each slider area so the CSS engine can inject the RGB colors accurately
+st.sidebar.markdown("<div data-st-key='vdp_r_container'>", unsafe_allow_html=True)
 vdp_r = st.sidebar.slider("Red Channel (VDP)", min_value=0, max_value=7, value=st.session_state.get('vdp_r_val', 0), key='vdp_r_slider')
-st.sidebar.markdown(f"<div style='margin-top:-10px; margin-bottom:10px;'>Value: {vdp_r}</div>", unsafe_allow_html=True)
+st.sidebar.markdown(f"<div style='margin-top:-10px; margin-bottom:10px;'>Value: {vdp_r}</div></div>", unsafe_allow_html=True)
 
+st.sidebar.markdown("<div data-st-key='vdp_g_container'>", unsafe_allow_html=True)
 vdp_g = st.sidebar.slider("Green Channel (VDP)", min_value=0, max_value=7, value=st.session_state.get('vdp_g_val', 6), key='vdp_g_slider')
-st.sidebar.markdown(f"<div style='margin-top:-10px; margin-bottom:10px;'>Value: {vdp_g}</div>", unsafe_allow_html=True)
+st.sidebar.markdown(f"<div style='margin-top:-10px; margin-bottom:10px;'>Value: {vdp_g}</div></div>", unsafe_allow_html=True)
 
+st.sidebar.markdown("<div data-st-key='vdp_b_container'>", unsafe_allow_html=True)
 vdp_b = st.sidebar.slider("Blue Channel (VDP)", min_value=0, max_value=7, value=st.session_state.get('vdp_b_val', 4), key='vdp_b_slider')
-st.sidebar.markdown(f"<div style='margin-top:-10px; margin-bottom:10px;'>Value: {vdp_b}</div>", unsafe_allow_html=True)
+st.sidebar.markdown(f"<div style='margin-top:-10px; margin-bottom:15px;'>Value: {vdp_b}</div></div>", unsafe_allow_html=True)
 
 st.session_state['vdp_r_val'] = vdp_r
 st.session_state['vdp_g_val'] = vdp_g
 st.session_state['vdp_b_val'] = vdp_b
 
 base_genesis = (VDP_STEPS[vdp_r], VDP_STEPS[vdp_g], VDP_STEPS[vdp_b])
-
-r_base_int = int(base_genesis[0])
-g_base_int = int(base_genesis[1])
-b_base_int = int(base_genesis[2])
+r_base_int, g_base_int, b_base_int = int(base_genesis[0]), int(base_genesis[1]), int(base_genesis[2])
 base_hex = f"#{r_base_int:02X}{g_base_int:02X}{b_base_int:02X}"
 
 st.sidebar.markdown("**Selected Base Preview:**")
@@ -264,23 +285,21 @@ with col_values:
                     </div>
                 """, unsafe_allow_html=True)
                 
-                # TOTAL CONVERGENCE FIX: Safe data mapping utilizing index targets explicitly
                 move_cols = st.columns(2)
                 with move_cols[0]:
                     if st.button("+Add", key=f"add_native_{i}_{hex_color.replace('#','')}"):
                         for s_idx in range(16):
                             if st.session_state.custom_palette[s_idx] is None:
-                                st.session_state.custom_palette[s_idx] = (r_c, g_c, b_c)
+                                st.session_state.custom_palette[s_idx] = color
                                 break
                         st.rerun()
                 with move_cols[1]:
                     if st.button("Ramp", key=f"ramp_trigger_{i}_{hex_color.replace('#','')}"):
-                        st.session_state.active_ramp_source = (r_c, g_c, b_c)
+                        st.session_state.active_ramp_source = color
                         st.rerun()
 
-    # RENDER COLOR RAMP PANELS INTERACTIVELY RIGHT BENEATH HARMONIES
     st.markdown("<div style='height:15px;'></div>", unsafe_allow_html=True)
-    if isinstance(st.session_state.active_ramp_source, tuple) and len(st.session_state.active_ramp_source) == 3:
+    if st.session_state.active_ramp_source:
         st.write("#### ⚡ Generated 8-Step Hardware Color Ramp")
         active_ramp = generate_hardware_ramp(st.session_state.active_ramp_source)
         ramp_cols = st.columns(8)
@@ -300,7 +319,7 @@ with col_values:
                     if st.button("+", key=f"add_ramp_cell_{r_idx}_{r_hex.replace('#','')}"):
                         for s_idx in range(16):
                             if st.session_state.custom_palette[s_idx] is None:
-                                st.session_state.custom_palette[s_idx] = (r_r, r_g, r_b)
+                                st.session_state.custom_palette[s_idx] = r_color
                                 break
                         st.rerun()
                             
